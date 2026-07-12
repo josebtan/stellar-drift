@@ -35,6 +35,8 @@ export class Asteroid extends Phaser.GameObjects.Sprite implements LightBody {
   vy: number;
   resourceType: ResourceType;
   amountRemaining: number;
+  /** Radio "físico" (no visual) usado por gravedad y colisiones */
+  radius: number;
 
   constructor(scene: Phaser.Scene, config: AsteroidConfig) {
     const modelIndex = config.modelIndex ?? Phaser.Math.Between(0, ASTEROID_MODEL_COUNT - 1);
@@ -43,6 +45,7 @@ export class Asteroid extends Phaser.GameObjects.Sprite implements LightBody {
     this.vy = config.vy ?? 0;
     this.resourceType = config.resourceType;
     this.amountRemaining = config.amount;
+    this.radius = config.radius;
 
     const discFraction = ASTEROID_MODEL_DISC_FRACTIONS[modelIndex];
     const scale = (config.radius * 2) / (this.width * discFraction);

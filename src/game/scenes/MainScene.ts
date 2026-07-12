@@ -4,11 +4,14 @@ import { PlayerShip } from "../entities/PlayerShip";
 import { Asteroid } from "../entities/Asteroid";
 import { Inventory } from "../systems/Inventory";
 import { UniverseStreamer } from "../systems/UniverseStreamer";
+import { checkCollisions } from "../systems/CollisionSystem";
 import { worldToSector } from "../procgen/universeGenerator";
 
 const MINING_RANGE = 90;
 const MINING_RATE = 15; // unidades por segundo
 const STAR_TILE_SIZE = 512;
+const SHIP_SPAWN_X = 400;
+const SHIP_SPAWN_Y = 0;
 
 export class MainScene extends Phaser.Scene {
   private gravity = new GravitySystem();
@@ -17,6 +20,8 @@ export class MainScene extends Phaser.Scene {
   private inventory = new Inventory();
   private hudText!: Phaser.GameObjects.Text;
   private starTile!: Phaser.GameObjects.TileSprite;
+  private gameOverGroup!: Phaser.GameObjects.Container;
+  private isGameOver = false;
 
   constructor() {
     super("main");
@@ -28,15 +33,19 @@ export class MainScene extends Phaser.Scene {
     this.createStarfield();
 
     this.universe = new UniverseStreamer(this, this.gravity);
-    this.universe.primeAround(400, 0);
+    this.universe.primeAround(SHIP_SPAWN_X, SHIP_SPAWN_Y);
 
-    this.ship = new PlayerShip(this, 400, 0);
+    this.ship = new PlayerShip(this, SHIP_SPAWN_X, SHIP_SPAWN_Y);
     this.cameras.main.startFollow(this.ship, true, 0.08, 0.08);
     this.cameras.main.setZoom(1);
 
     this.createHud();
+    this.createGameOverOverlay();
 
     this.input.keyboard!.on("keydown-SPACE", () => this.tryMine());
+    this.input.keyboard!.on("keydown-R", () => {
+      if (this.isGameOver) this.respawnShip();
+    });
   }
 
   private createStarfield() {
@@ -73,7 +82,58 @@ export class MainScene extends Phaser.Scene {
       .setDepth(100);
   }
 
+  private createGameOverOverlay() {
+    const { width, height } = this.scale;
+    const bg = this.add.rectangle(0, 0, width, height, 0x02030a, 0.85).setOrigin(0, 0);
+    const title = this.add
+      .text(width / 2, height / 2 - 40, "NAVE DESTRUIDA", {
+        fontFamily: "monospace",
+        fontSize: "28px",
+        color: "#ff6b6b",
+      })
+      .setOrigin(0.5);
+    const subtitle = this.add
+      .text(width / 2, height / 2 + 4, "Se perdió la carga recolectada.", {
+        fontFamily: "monospace",
+        fontSize: "14px",
+        color: "#bfe8ff",
+      })
+      .setOrigin(0.5);
+    const hint = this.add
+      .text(width / 2, height / 2 + 34, "Pulsá [R] para reaparecer", {
+        fontFamily: "monospace",
+        fontSize: "14px",
+        color: "#8ce3ff",
+      })
+      .setOrigin(0.5);
+
+    this.gameOverGroup = this.add.container(0, 0, [bg, title, subtitle, hint]);
+    this.gameOverGroup.setScrollFactor(0).setDepth(200).setVisible(false);
+
+    // Mantiene el overlay del tamaño de la ventana si hay resize
+    this.scale.on("resize", (size: Phaser.Structs.Size) => {
+      bg.setSize(size.width, size.height);
+      title.setPosition(size.width / 2, size.height / 2 - 40);
+      subtitle.setPosition(size.width / 2, size.height / 2 + 4);
+      hint.setPosition(size.width / 2, size.height / 2 + 34);
+    });
+  }
+
+  private showGameOver() {
+    this.isGameOver = true;
+    this.gameOverGroup.setVisible(true);
+  }
+
+  private respawnShip() {
+    this.isGameOver = false;
+    this.gameOverGroup.setVisible(false);
+    this.ship.respawn(SHIP_SPAWN_X, SHIP_SPAWN_Y);
+    this.inventory.reset();
+  }
+
   private tryMine() {
+    if (this.isGameOver) return;
+
     let nearest: Asteroid | null = null;
     let nearestDist = Infinity;
 
@@ -104,10 +164,14 @@ export class MainScene extends Phaser.Scene {
     // Cuerpos celestes (órbitas propias)
     for (const body of this.universe.celestialBodies) body.update(dt);
 
-    // Input + gravedad + integración de la nave
-    this.ship.handleInput(dt);
-    this.gravity.step(this.ship, dt);
-    this.ship.applyVelocity(dt);
+    this.ship.tickInvulnerability(dt);
+
+    if (!this.ship.isDestroyed) {
+      // Input + gravedad + integración de la nave
+      this.ship.handleInput(dt);
+      this.gravity.step(this.ship, dt);
+      this.ship.applyVelocity(dt);
+    }
 
     // Gravedad + integración de asteroides
     for (const asteroid of this.universe.asteroids) {
@@ -115,7 +179,14 @@ export class MainScene extends Phaser.Scene {
       asteroid.applyVelocity(dt);
     }
 
-    this.inventory.tickLifeSupport(dt);
+    checkCollisions(this.ship, this.universe.celestialBodies, this.universe.asteroids, {
+      onAsteroidDestroyed: (asteroid) => this.universe.notifyAsteroidDepleted(asteroid),
+      onShipDestroyed: () => this.showGameOver(),
+    });
+
+    if (!this.ship.isDestroyed) {
+      this.inventory.tickLifeSupport(dt);
+    }
     this.updateStarfield();
     this.updateHud();
   }
@@ -134,7 +205,7 @@ export class MainScene extends Phaser.Scene {
     const { sx, sy } = worldToSector(this.ship.x, this.ship.y);
     this.hudText.setText(
       [
-        `Soporte vital: ${this.inventory.lifeSupport.toFixed(0)}%`,
+        `Casco: ${this.ship.hull.toFixed(0)}%   Soporte vital: ${this.inventory.lifeSupport.toFixed(0)}%`,
         `Velocidad: ${speed}`,
         `Sector: ${sx}, ${sy}`,
         `Hierro: ${res.iron.toFixed(0)}  Hielo: ${res.ice.toFixed(0)}  Mineral raro: ${res.rareMineral.toFixed(0)}`,

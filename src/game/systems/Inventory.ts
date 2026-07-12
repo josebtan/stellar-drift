@@ -46,4 +46,10 @@ export class Inventory {
       this.lifeSupport = Math.min(100, this.lifeSupport + consume * 5);
     }
   }
+
+  /** Usado al respawnear tras destruir la nave: se pierde lo recolectado. */
+  reset() {
+    this.resources = { iron: 0, ice: 0, rareMineral: 0 };
+    this.lifeSupport = 100;
+  }
 }
