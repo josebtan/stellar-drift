@@ -2,12 +2,7 @@ import Phaser from "phaser";
 import sunSpritesheet from "../../assets/celestial/sun-spritesheet.png";
 import asteroidSpritesheet from "../../assets/celestial/asteroid/asteroid-spritesheet.png";
 import { PLANET_CATALOG } from "../planetCatalog";
-import {
-  SUN_FRAME_SIZE,
-  SUN_FRAME_COUNT,
-  ASTEROID_FRAME_SIZE,
-  ASTEROID_FRAME_COUNT,
-} from "../assetConstants";
+import { SUN_FRAME_SIZE, SUN_FRAME_COUNT, ASTEROID_FRAME_SIZE } from "../assetConstants";
 
 // La generación procedural puede elegir cualquier planeta del catálogo para
 // cualquier sistema estelar, así que precargamos los 16 sprites disponibles.
@@ -30,6 +25,8 @@ export class BootScene extends Phaser.Scene {
       frameHeight: SUN_FRAME_SIZE,
     });
 
+    // El spritesheet de asteroides no es una animación: cada frame es un
+    // MODELO distinto (forma/tamaño propios), elegido al azar por asteroide.
     this.load.spritesheet("asteroid", asteroidSpritesheet, {
       frameWidth: ASTEROID_FRAME_SIZE,
       frameHeight: ASTEROID_FRAME_SIZE,
@@ -49,13 +46,6 @@ export class BootScene extends Phaser.Scene {
       key: "sun-glow",
       frames: this.anims.generateFrameNumbers("sun", { start: 0, end: SUN_FRAME_COUNT - 1 }),
       frameRate: 12,
-      repeat: -1,
-    });
-
-    this.anims.create({
-      key: "asteroid-spin",
-      frames: this.anims.generateFrameNumbers("asteroid", { start: 0, end: ASTEROID_FRAME_COUNT - 1 }),
-      frameRate: 6,
       repeat: -1,
     });
 

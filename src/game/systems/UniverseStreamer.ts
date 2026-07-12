@@ -128,6 +128,7 @@ export class UniverseStreamer {
         radius: a.radius,
         resourceType: a.resourceType,
         amount: a.amount,
+        modelIndex: a.modelIndex,
         vx: a.vx,
         vy: a.vy,
       });

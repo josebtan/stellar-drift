@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import type { LightBody } from "../physics/GravitySystem";
-import { ASTEROID_FRAME_COUNT, ASTEROID_DISC_FRACTION } from "../assetConstants";
+import { ASTEROID_MODEL_DISC_FRACTIONS, ASTEROID_MODEL_COUNT } from "../assetConstants";
 
 export type ResourceType = "iron" | "ice" | "rareMineral";
 
@@ -10,6 +10,10 @@ export interface AsteroidConfig {
   radius: number;
   resourceType: ResourceType;
   amount: number;
+  /** Qué modelo (de los 9 provistos) usar. Si no se especifica, se elige
+   * uno al azar localmente (útil para código que no viene del generador
+   * procedural determinista). */
+  modelIndex?: number;
   vx?: number;
   vy?: number;
 }
@@ -33,23 +37,23 @@ export class Asteroid extends Phaser.GameObjects.Sprite implements LightBody {
   amountRemaining: number;
 
   constructor(scene: Phaser.Scene, config: AsteroidConfig) {
-    super(scene, config.x, config.y, "asteroid", 0);
+    const modelIndex = config.modelIndex ?? Phaser.Math.Between(0, ASTEROID_MODEL_COUNT - 1);
+    super(scene, config.x, config.y, "asteroid", modelIndex);
     this.vx = config.vx ?? 0;
     this.vy = config.vy ?? 0;
     this.resourceType = config.resourceType;
     this.amountRemaining = config.amount;
 
-    const scale = (config.radius * 2) / (this.width * ASTEROID_DISC_FRACTION);
+    const discFraction = ASTEROID_MODEL_DISC_FRACTIONS[modelIndex];
+    const scale = (config.radius * 2) / (this.width * discFraction);
     this.setScale(scale);
     this.setTint(RESOURCE_TINTS[config.resourceType]);
+    // Rotación 2D fija y aleatoria: cada modelo ya es una forma irregular
+    // distinta, así que basta con orientarlo distinto para que no se vean
+    // todos los asteroides "parados" igual.
+    this.setRotation(Phaser.Math.FloatBetween(0, Math.PI * 2));
 
     scene.add.existing(this);
-
-    // Cada asteroide gira a su propio ritmo (y a veces "al revés") usando
-    // los 9 frames renderizados de la roca rotando, en vez de rotar el
-    // sprite 2D (que se vería raro sobre una textura ya en perspectiva).
-    this.play({ key: "asteroid-spin", startFrame: Phaser.Math.Between(0, ASTEROID_FRAME_COUNT - 1) });
-    this.anims.timeScale = Phaser.Math.FloatBetween(-1.4, 1.4) || 0.6;
   }
 
   applyVelocity(dt: number) {

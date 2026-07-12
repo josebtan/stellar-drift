@@ -1,6 +1,7 @@
 import { SeededRandom, hashCoords } from "./random";
 import { getPlanetSpritesByClass } from "../planetCatalog";
 import { G } from "../physics/GravitySystem";
+import { ASTEROID_MODEL_COUNT } from "../assetConstants";
 import type { ResourceType } from "../entities/Asteroid";
 
 /** Semilla global del universo. Cambiarla genera un universo completamente distinto. */
@@ -44,6 +45,7 @@ export interface AsteroidDef {
   radius: number;
   resourceType: ResourceType;
   amount: number;
+  modelIndex: number;
   vx: number;
   vy: number;
 }
@@ -203,9 +205,10 @@ function generateRogueAsteroids(rng: SeededRandom, centerX: number, centerY: num
     asteroids.push({
       x,
       y,
-      radius: rng.range(10, 26),
+      radius: rng.range(8, 36),
       resourceType: rng.pick(types),
-      amount: rng.range(40, 120),
+      amount: rng.range(40, 140),
+      modelIndex: rng.intRange(0, ASTEROID_MODEL_COUNT - 1),
       vx: rng.range(-15, 15),
       vy: rng.range(-15, 15),
     });
@@ -224,9 +227,10 @@ function spawnAsteroidAt(
   return {
     x: cx + Math.cos(angle) * distance,
     y: cy + Math.sin(angle) * distance,
-    radius: rng.range(10, 26),
+    radius: rng.range(8, 36),
     resourceType: rng.pick(types),
-    amount: rng.range(40, 120),
+    amount: rng.range(40, 140),
+    modelIndex: rng.intRange(0, ASTEROID_MODEL_COUNT - 1),
     vx: rng.range(-15, 15),
     vy: rng.range(-15, 15),
   };
