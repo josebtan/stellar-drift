@@ -1,5 +1,5 @@
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore";
-import { db } from "./firebase";
+import { db, isFirebaseConfigured } from "./firebase";
 
 export interface PlayerState {
   position: { x: number; y: number };
@@ -17,7 +17,15 @@ export function createDefaultPlayerState(): PlayerState {
   };
 }
 
+function requireDb() {
+  if (!isFirebaseConfigured || !db) {
+    throw new Error("Firebase no está configurado; no se puede leer/guardar el estado del jugador.");
+  }
+  return db;
+}
+
 export async function loadPlayerState(uid: string): Promise<PlayerState | null> {
+  const db = requireDb();
   const snap = await getDoc(doc(db, "players", uid));
   if (!snap.exists()) return null;
   const data = snap.data();
@@ -31,10 +39,12 @@ export async function loadPlayerState(uid: string): Promise<PlayerState | null> 
 
 /** Guarda progreso. Se recomienda llamar con throttle (ej. cada 10s) y al salir. */
 export async function savePlayerState(uid: string, state: Partial<PlayerState>) {
+  const db = requireDb();
   await updateDoc(doc(db, "players", uid), { ...state });
 }
 
 export async function ensurePlayerDoc(uid: string, displayName: string) {
+  const db = requireDb();
   const ref = doc(db, "players", uid);
   const snap = await getDoc(ref);
   if (!snap.exists()) {
