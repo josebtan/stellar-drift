@@ -16,6 +16,8 @@ export interface CelestialBodyConfig {
   orbitSpeed?: number; // radianes / segundo
 }
 
+const SUN_SPRITE_SOURCE_SIZE = 330; // tamaño en px de cada frame del spritesheet
+
 /**
  * Cuerpo celeste masivo (estrella o planeta). Puede tener una órbita
  * kepleriana simple alrededor de un centro (otra estrella).
@@ -23,18 +25,22 @@ export interface CelestialBodyConfig {
 export class CelestialBody extends Phaser.GameObjects.Container {
   public readonly config: CelestialBodyConfig;
   private orbitAngle = 0;
-  private sprite: Phaser.GameObjects.Arc;
 
   constructor(scene: Phaser.Scene, config: CelestialBodyConfig) {
     super(scene, config.x, config.y);
     this.config = config;
 
-    this.sprite = scene.add.circle(0, 0, config.radius, config.color);
-    this.add(this.sprite);
-
     if (config.type === "star") {
-      const glow = scene.add.circle(0, 0, config.radius * 1.6, config.color, 0.15);
-      this.addAt(glow, 0);
+      const sprite = scene.add.sprite(0, 0, "sun");
+      // El sprite es 330x330 con glow incluido; lo escalamos para que el
+      // disco visible (~2/3 del frame) coincida con config.radius.
+      const scale = (config.radius * 2) / (SUN_SPRITE_SOURCE_SIZE * 0.66);
+      sprite.setScale(scale);
+      sprite.play("sun-glow");
+      this.add(sprite);
+    } else {
+      const sprite = scene.add.circle(0, 0, config.radius, config.color);
+      this.add(sprite);
     }
 
     scene.add.existing(this);
