@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { getPlanetSprite } from "../planetCatalog";
 
 export type CelestialType = "star" | "planet";
 
@@ -10,6 +11,8 @@ export interface CelestialBodyConfig {
   mass: number;
   color: number;
   influenceRadius: number;
+  /** Clave del sprite en el catálogo (obligatorio para type:"planet") */
+  spriteKey?: string;
   /** Si orbita otro cuerpo (ej. planeta alrededor de una estrella) */
   orbitCenter?: { x: number; y: number };
   orbitDistance?: number;
@@ -37,6 +40,15 @@ export class CelestialBody extends Phaser.GameObjects.Container {
       const scale = (config.radius * 2) / (SUN_SPRITE_SOURCE_SIZE * 0.66);
       sprite.setScale(scale);
       sprite.play("sun-glow");
+      this.add(sprite);
+    } else if (config.spriteKey) {
+      const sprite = scene.add.sprite(0, 0, config.spriteKey);
+      const { discFraction } = getPlanetSprite(config.spriteKey);
+      // sprite.width es el ancho nativo de la textura (sin escalar), así que
+      // esto da el factor exacto para que el DISCO (no el glow/anillo) mida
+      // config.radius*2 en pantalla, sin importar la resolución del sprite.
+      const scale = (config.radius * 2) / (sprite.width * discFraction);
+      sprite.setScale(scale);
       this.add(sprite);
     } else {
       const sprite = scene.add.circle(0, 0, config.radius, config.color);

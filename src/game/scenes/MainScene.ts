@@ -5,8 +5,9 @@ import { PlayerShip } from "../entities/PlayerShip";
 import { Asteroid } from "../entities/Asteroid";
 import { Inventory } from "../systems/Inventory";
 import type { ResourceType } from "../entities/Asteroid";
+import { PLANET_DEFINITIONS, orbitSpeedForDistance } from "../solarSystemConfig";
 
-const WORLD_SIZE = 6000;
+const WORLD_SIZE = 8000;
 const MINING_RANGE = 90;
 const MINING_RATE = 15; // unidades por segundo
 
@@ -73,33 +74,38 @@ export class MainScene extends Phaser.Scene {
       radius: 120,
       mass: 400,
       color: 0xffd27f,
-      influenceRadius: 4000,
+      influenceRadius: 7000,
     });
     this.celestialBodies.push(star);
     this.gravity.registerMassiveBody(star.config);
 
-    // Planeta orbitando la estrella
-    const planet = new CelestialBody(this, {
-      type: "planet",
-      x: 1400,
-      y: 0,
-      radius: 45,
-      mass: 60,
-      color: 0x6fb3ff,
-      influenceRadius: 900,
-      orbitCenter: { x: 0, y: 0 },
-      orbitDistance: 1400,
-      orbitSpeed: 0.05,
-    });
-    this.celestialBodies.push(planet);
-    this.gravity.registerMassiveBody(planet.config);
+    // Planetas con órbita fija alrededor de la estrella. La velocidad angular
+    // se deriva de la distancia (ver orbitSpeedForDistance) para que los
+    // planetas lejanos giren más lento, como en un sistema real.
+    for (const def of PLANET_DEFINITIONS) {
+      const planet = new CelestialBody(this, {
+        type: "planet",
+        x: def.orbitDistance,
+        y: 0,
+        radius: def.radius,
+        mass: def.mass,
+        color: 0xffffff,
+        influenceRadius: def.influenceRadius,
+        spriteKey: def.spriteKey,
+        orbitCenter: { x: 0, y: 0 },
+        orbitDistance: def.orbitDistance,
+        orbitSpeed: orbitSpeedForDistance(def.orbitDistance),
+      });
+      this.celestialBodies.push(planet);
+      this.gravity.registerMassiveBody(planet.config);
+    }
   }
 
   private createAsteroidField() {
     const types: ResourceType[] = ["iron", "ice", "rareMineral"];
-    for (let i = 0; i < 60; i++) {
+
+    const spawnAsteroid = (dist: number) => {
       const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-      const dist = Phaser.Math.FloatBetween(600, 2400);
       const x = Math.cos(angle) * dist;
       const y = Math.sin(angle) * dist;
       const type = types[Phaser.Math.Between(0, types.length - 1)];
@@ -114,6 +120,21 @@ export class MainScene extends Phaser.Scene {
         vy: Phaser.Math.FloatBetween(-15, 15),
       });
       this.asteroids.push(asteroid);
+    };
+
+    // Cinturón principal, entre la órbita del 4º y 5º planeta (rocoso -> gigante gaseoso)
+    for (let i = 0; i < 90; i++) {
+      spawnAsteroid(Phaser.Math.FloatBetween(2350, 2900));
+    }
+
+    // Dispersos cerca del sistema interior
+    for (let i = 0; i < 20; i++) {
+      spawnAsteroid(Phaser.Math.FloatBetween(500, 1900));
+    }
+
+    // Dispersos en el sistema exterior
+    for (let i = 0; i < 15; i++) {
+      spawnAsteroid(Phaser.Math.FloatBetween(4700, 6800));
     }
   }
 
