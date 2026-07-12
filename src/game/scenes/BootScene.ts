@@ -1,19 +1,23 @@
 import Phaser from "phaser";
 import sunSpritesheet from "../../assets/celestial/sun-spritesheet.png";
-import { PLANET_DEFINITIONS } from "../solarSystemConfig";
+import asteroidSpritesheet from "../../assets/celestial/asteroid/asteroid-spritesheet.png";
+import { PLANET_CATALOG } from "../planetCatalog";
+import {
+  SUN_FRAME_SIZE,
+  SUN_FRAME_COUNT,
+  ASTEROID_FRAME_SIZE,
+  ASTEROID_FRAME_COUNT,
+} from "../assetConstants";
 
-const SUN_FRAME_SIZE = 330;
-const SUN_FRAME_COUNT = 15;
-
-// El catálogo completo vive en /assets/celestial/planets, pero solo
-// precargamos los sprites realmente usados en PLANET_DEFINITIONS para no
-// bajar ~4MB de planetas sin usar. eager:true resuelve las URLs en build
-// time (con hash de Vite y el base path correcto para GitHub Pages).
+// La generación procedural puede elegir cualquier planeta del catálogo para
+// cualquier sistema estelar, así que precargamos los 16 sprites disponibles.
+// eager:true resuelve las URLs en build time (con hash de Vite y el base
+// path correcto para GitHub Pages).
 const planetModules = import.meta.glob<string>("../../assets/celestial/planets/*.png", {
   eager: true,
   import: "default",
 });
-const usedPlanetKeys = new Set(PLANET_DEFINITIONS.map((def) => def.spriteKey));
+const catalogKeys = new Set(PLANET_CATALOG.map((p) => p.key));
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -26,10 +30,15 @@ export class BootScene extends Phaser.Scene {
       frameHeight: SUN_FRAME_SIZE,
     });
 
+    this.load.spritesheet("asteroid", asteroidSpritesheet, {
+      frameWidth: ASTEROID_FRAME_SIZE,
+      frameHeight: ASTEROID_FRAME_SIZE,
+    });
+
     for (const [path, url] of Object.entries(planetModules)) {
       // "../../assets/celestial/planets/planet_18.png" -> "planet_18"
       const key = path.split("/").pop()!.replace(".png", "");
-      if (usedPlanetKeys.has(key)) {
+      if (catalogKeys.has(key)) {
         this.load.image(key, url);
       }
     }
@@ -40,6 +49,13 @@ export class BootScene extends Phaser.Scene {
       key: "sun-glow",
       frames: this.anims.generateFrameNumbers("sun", { start: 0, end: SUN_FRAME_COUNT - 1 }),
       frameRate: 12,
+      repeat: -1,
+    });
+
+    this.anims.create({
+      key: "asteroid-spin",
+      frames: this.anims.generateFrameNumbers("asteroid", { start: 0, end: ASTEROID_FRAME_COUNT - 1 }),
+      frameRate: 6,
       repeat: -1,
     });
 

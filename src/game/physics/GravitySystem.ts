@@ -41,6 +41,11 @@ export class GravitySystem {
     this.massiveBodies.push(body);
   }
 
+  unregisterMassiveBody(body: MassiveBody) {
+    const idx = this.massiveBodies.indexOf(body);
+    if (idx !== -1) this.massiveBodies.splice(idx, 1);
+  }
+
   clear() {
     this.massiveBodies = [];
   }

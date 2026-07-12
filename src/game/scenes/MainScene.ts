@@ -1,36 +1,34 @@
 import Phaser from "phaser";
 import { GravitySystem } from "../physics/GravitySystem";
-import { CelestialBody } from "../entities/CelestialBody";
 import { PlayerShip } from "../entities/PlayerShip";
 import { Asteroid } from "../entities/Asteroid";
 import { Inventory } from "../systems/Inventory";
-import type { ResourceType } from "../entities/Asteroid";
-import { PLANET_DEFINITIONS, orbitSpeedForDistance } from "../solarSystemConfig";
+import { UniverseStreamer } from "../systems/UniverseStreamer";
+import { worldToSector } from "../procgen/universeGenerator";
 
-const WORLD_SIZE = 8000;
 const MINING_RANGE = 90;
 const MINING_RATE = 15; // unidades por segundo
+const STAR_TILE_SIZE = 512;
 
 export class MainScene extends Phaser.Scene {
   private gravity = new GravitySystem();
+  private universe!: UniverseStreamer;
   private ship!: PlayerShip;
-  private celestialBodies: CelestialBody[] = [];
-  private asteroids: Asteroid[] = [];
   private inventory = new Inventory();
   private hudText!: Phaser.GameObjects.Text;
-  private starfield!: Phaser.GameObjects.TileSprite;
+  private starTile!: Phaser.GameObjects.TileSprite;
 
   constructor() {
     super("main");
   }
 
   create() {
-    this.physics.world.setBounds(-WORLD_SIZE, -WORLD_SIZE, WORLD_SIZE * 2, WORLD_SIZE * 2);
-    this.cameras.main.setBounds(-WORLD_SIZE, -WORLD_SIZE, WORLD_SIZE * 2, WORLD_SIZE * 2);
-
+    // Sin world bounds ni camera bounds: el universo es (casi) infinito,
+    // así que no hay un rectángulo fijo que lo contenga.
     this.createStarfield();
-    this.createSolarSystem();
-    this.createAsteroidField();
+
+    this.universe = new UniverseStreamer(this, this.gravity);
+    this.universe.primeAround(400, 0);
 
     this.ship = new PlayerShip(this, 400, 0);
     this.cameras.main.startFollow(this.ship, true, 0.08, 0.08);
@@ -42,100 +40,26 @@ export class MainScene extends Phaser.Scene {
   }
 
   private createStarfield() {
-    this.starfield = this.add
-      .tileSprite(0, 0, this.scale.width, this.scale.height, undefined as unknown as string)
-      .setOrigin(0)
+    // Textura pequeña con puntos aleatorios, usada como tile infinito. Al no
+    // depender de un WORLD_SIZE fijo, funciona igual de bien cerca del
+    // origen que a millones de unidades de distancia.
+    const gfx = this.add.graphics();
+    for (let i = 0; i < 140; i++) {
+      const x = Phaser.Math.Between(0, STAR_TILE_SIZE);
+      const y = Phaser.Math.Between(0, STAR_TILE_SIZE);
+      const r = Phaser.Math.FloatBetween(0.5, 1.6);
+      const alpha = Phaser.Math.FloatBetween(0.3, 1);
+      gfx.fillStyle(0xffffff, alpha);
+      gfx.fillCircle(x, y, r);
+    }
+    gfx.generateTexture("starfield-tile", STAR_TILE_SIZE, STAR_TILE_SIZE);
+    gfx.destroy();
+
+    this.starTile = this.add
+      .tileSprite(0, 0, this.scale.width, this.scale.height, "starfield-tile")
+      .setOrigin(0, 0)
       .setScrollFactor(0)
       .setDepth(-10);
-    // Sustituido por un fondo de puntos generado proceduralmente:
-    this.starfield.destroy();
-    this.generateProceduralStars();
-  }
-
-  private generateProceduralStars() {
-    const g = this.add.graphics({ x: 0, y: 0 });
-    g.setDepth(-10);
-    g.setScrollFactor(0.15); // parallax leve
-    g.fillStyle(0xffffff, 0.8);
-    for (let i = 0; i < 400; i++) {
-      const x = Phaser.Math.Between(-WORLD_SIZE, WORLD_SIZE);
-      const y = Phaser.Math.Between(-WORLD_SIZE, WORLD_SIZE);
-      const r = Phaser.Math.FloatBetween(0.5, 1.6);
-      g.fillCircle(x, y, r);
-    }
-  }
-
-  private createSolarSystem() {
-    // Estrella central
-    const star = new CelestialBody(this, {
-      type: "star",
-      x: 0,
-      y: 0,
-      radius: 120,
-      mass: 400,
-      color: 0xffd27f,
-      influenceRadius: 7000,
-    });
-    this.celestialBodies.push(star);
-    this.gravity.registerMassiveBody(star.config);
-
-    // Planetas con órbita fija alrededor de la estrella. La velocidad angular
-    // se deriva de la distancia (ver orbitSpeedForDistance) para que los
-    // planetas lejanos giren más lento, como en un sistema real.
-    for (const def of PLANET_DEFINITIONS) {
-      const planet = new CelestialBody(this, {
-        type: "planet",
-        x: def.orbitDistance,
-        y: 0,
-        radius: def.radius,
-        mass: def.mass,
-        color: 0xffffff,
-        influenceRadius: def.influenceRadius,
-        spriteKey: def.spriteKey,
-        orbitCenter: { x: 0, y: 0 },
-        orbitDistance: def.orbitDistance,
-        orbitSpeed: orbitSpeedForDistance(def.orbitDistance),
-      });
-      this.celestialBodies.push(planet);
-      this.gravity.registerMassiveBody(planet.config);
-    }
-  }
-
-  private createAsteroidField() {
-    const types: ResourceType[] = ["iron", "ice", "rareMineral"];
-
-    const spawnAsteroid = (dist: number) => {
-      const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-      const x = Math.cos(angle) * dist;
-      const y = Math.sin(angle) * dist;
-      const type = types[Phaser.Math.Between(0, types.length - 1)];
-
-      const asteroid = new Asteroid(this, {
-        x,
-        y,
-        radius: Phaser.Math.Between(10, 26),
-        resourceType: type,
-        amount: Phaser.Math.Between(40, 120),
-        vx: Phaser.Math.FloatBetween(-15, 15),
-        vy: Phaser.Math.FloatBetween(-15, 15),
-      });
-      this.asteroids.push(asteroid);
-    };
-
-    // Cinturón principal, entre la órbita del 4º y 5º planeta (rocoso -> gigante gaseoso)
-    for (let i = 0; i < 90; i++) {
-      spawnAsteroid(Phaser.Math.FloatBetween(2350, 2900));
-    }
-
-    // Dispersos cerca del sistema interior
-    for (let i = 0; i < 20; i++) {
-      spawnAsteroid(Phaser.Math.FloatBetween(500, 1900));
-    }
-
-    // Dispersos en el sistema exterior
-    for (let i = 0; i < 15; i++) {
-      spawnAsteroid(Phaser.Math.FloatBetween(4700, 6800));
-    }
   }
 
   private createHud() {
@@ -153,7 +77,7 @@ export class MainScene extends Phaser.Scene {
     let nearest: Asteroid | null = null;
     let nearestDist = Infinity;
 
-    for (const asteroid of this.asteroids) {
+    for (const asteroid of this.universe.asteroids) {
       const d = Phaser.Math.Distance.Between(this.ship.x, this.ship.y, asteroid.x, asteroid.y);
       if (d < nearestDist) {
         nearestDist = d;
@@ -164,8 +88,9 @@ export class MainScene extends Phaser.Scene {
     if (nearest && nearestDist <= MINING_RANGE) {
       const extracted = nearest.mine(MINING_RATE);
       this.inventory.add(nearest.resourceType, extracted);
-      if (nearest.amountRemaining <= 0) {
-        this.asteroids = this.asteroids.filter((a) => a !== nearest);
+      if (!nearest.active) {
+        // mine() ya llamó a destroy() internamente al agotarse
+        this.universe.notifyAsteroidDepleted(nearest);
       }
     }
   }
@@ -173,8 +98,11 @@ export class MainScene extends Phaser.Scene {
   update(_time: number, deltaMs: number) {
     const dt = Math.min(deltaMs / 1000, 0.05); // clamp para evitar saltos en tabs inactivos
 
+    // Carga/descarga de sectores según la posición actual de la nave
+    this.universe.update(dt, this.ship.x, this.ship.y);
+
     // Cuerpos celestes (órbitas propias)
-    for (const body of this.celestialBodies) body.update(dt);
+    for (const body of this.universe.celestialBodies) body.update(dt);
 
     // Input + gravedad + integración de la nave
     this.ship.handleInput(dt);
@@ -182,22 +110,33 @@ export class MainScene extends Phaser.Scene {
     this.ship.applyVelocity(dt);
 
     // Gravedad + integración de asteroides
-    for (const asteroid of this.asteroids) {
+    for (const asteroid of this.universe.asteroids) {
       this.gravity.step(asteroid, dt);
       asteroid.applyVelocity(dt);
     }
 
     this.inventory.tickLifeSupport(dt);
+    this.updateStarfield();
     this.updateHud();
+  }
+
+  private updateStarfield() {
+    // Mantiene el tile del tamaño de la ventana (por si hubo resize) y lo
+    // desplaza con leve paralaje respecto a la cámara.
+    this.starTile.setSize(this.scale.width, this.scale.height);
+    this.starTile.tilePositionX = this.cameras.main.scrollX * 0.15;
+    this.starTile.tilePositionY = this.cameras.main.scrollY * 0.15;
   }
 
   private updateHud() {
     const res = this.inventory.getAll();
     const speed = Math.hypot(this.ship.vx, this.ship.vy).toFixed(0);
+    const { sx, sy } = worldToSector(this.ship.x, this.ship.y);
     this.hudText.setText(
       [
         `Soporte vital: ${this.inventory.lifeSupport.toFixed(0)}%`,
         `Velocidad: ${speed}`,
+        `Sector: ${sx}, ${sy}`,
         `Hierro: ${res.iron.toFixed(0)}  Hielo: ${res.ice.toFixed(0)}  Mineral raro: ${res.rareMineral.toFixed(0)}`,
         `[Flechas/WASD] mover  [ESPACIO] minar asteroide cercano`,
       ].join("\n")
