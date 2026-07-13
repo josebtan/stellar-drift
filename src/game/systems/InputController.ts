@@ -65,7 +65,7 @@ export class InputController {
   /** true si el dispositivo usa controles táctiles (joysticks) en vez de mouse+teclado */
   readonly isTouch: boolean;
 
-  constructor(scene: Phaser.Scene) {
+  constructor(scene: Phaser.Scene, uiLayer?: Phaser.GameObjects.Layer) {
     this.scene = scene;
     this.isTouchDevice = scene.sys.game.device.input.touch;
     this.isTouch = this.isTouchDevice;
@@ -74,7 +74,7 @@ export class InputController {
     this.repositionAnchors();
 
     if (this.isTouchDevice) {
-      this.setupTouch();
+      this.setupTouch(uiLayer);
     } else {
       this.setupMouse();
     }
@@ -130,8 +130,9 @@ export class InputController {
 
   // ------------------------------------------------------------ Touch ----
 
-  private setupTouch() {
+  private setupTouch(uiLayer?: Phaser.GameObjects.Layer) {
     this.touchGraphics = this.scene.add.graphics().setScrollFactor(0).setDepth(150);
+    uiLayer?.add(this.touchGraphics);
 
     this.scene.input.on("pointerdown", (p: Phaser.Input.Pointer) => this.onTouchDown(p));
     this.scene.input.on("pointermove", (p: Phaser.Input.Pointer) => this.onTouchMove(p));

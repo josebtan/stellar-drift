@@ -28,6 +28,7 @@ interface LoadedSector {
 export class UniverseStreamer {
   private scene: Phaser.Scene;
   private gravity: GravitySystem;
+  private worldLayer?: Phaser.GameObjects.Layer;
   private sectors = new Map<string, LoadedSector>();
   private timeSinceCheck = 0;
 
@@ -36,9 +37,10 @@ export class UniverseStreamer {
   public asteroids: Asteroid[] = [];
   public stations: SpaceStation[] = [];
 
-  constructor(scene: Phaser.Scene, gravity: GravitySystem) {
+  constructor(scene: Phaser.Scene, gravity: GravitySystem, worldLayer?: Phaser.GameObjects.Layer) {
     this.scene = scene;
     this.gravity = gravity;
+    this.worldLayer = worldLayer;
   }
 
   /** Debe llamarse una vez al iniciar, para tener contenido antes del primer update. */
@@ -101,6 +103,7 @@ export class UniverseStreamer {
       this.gravity.registerMassiveBody(star.config);
       loaded.star = star;
       this.celestialBodies.push(star);
+      this.worldLayer?.add(star);
 
       for (const p of data.planets) {
         const x = data.star.x + Math.cos(p.orbitAngleOffset) * p.orbitDistance;
@@ -121,12 +124,14 @@ export class UniverseStreamer {
         this.gravity.registerMassiveBody(planet.config);
         loaded.planets.push(planet);
         this.celestialBodies.push(planet);
+        this.worldLayer?.add(planet);
       }
 
       if (data.station) {
         const station = new SpaceStation(this.scene, data.station.x, data.station.y, data.station.radius);
         loaded.station = station;
         this.stations.push(station);
+        this.worldLayer?.add(station);
       }
     }
 
@@ -143,6 +148,7 @@ export class UniverseStreamer {
       });
       loaded.asteroids.push(asteroid);
       this.asteroids.push(asteroid);
+      this.worldLayer?.add(asteroid);
     }
 
     this.sectors.set(this.key(sx, sy), loaded);

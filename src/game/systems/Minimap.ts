@@ -4,8 +4,9 @@ import type { Asteroid } from "../entities/Asteroid";
 import type { SpaceStation } from "../entities/SpaceStation";
 import type { PlayerShip } from "../entities/PlayerShip";
 
-const RADIUS_PX = 85; // radio del minimapa en pantalla
-const MARGIN = 18;
+const RADIUS_PX = 78; // radio del contenido del minimapa en pantalla (dentro del marco)
+const FRAME_DISPLAY_SIZE = 190; // tamaño del marco decorativo
+const MARGIN = 14;
 const WORLD_RADIUS = 6000; // hasta dónde se ven astros
 const ASTEROID_WORLD_RADIUS = 3200; // los asteroides se ven a menor distancia (evita saturar)
 
@@ -17,20 +18,29 @@ const ASTEROID_WORLD_RADIUS = 3200; // los asteroides se ven a menor distancia (
 export class Minimap {
   private scene: Phaser.Scene;
   private graphics: Phaser.GameObjects.Graphics;
+  private frame: Phaser.GameObjects.Image;
   private centerX = 0;
   private centerY = 0;
 
-  constructor(scene: Phaser.Scene) {
+  constructor(scene: Phaser.Scene, uiLayer?: Phaser.GameObjects.Layer) {
     this.scene = scene;
     this.graphics = scene.add.graphics().setScrollFactor(0).setDepth(150);
+    this.frame = scene.add
+      .image(0, 0, "minimap-frame")
+      .setScrollFactor(0)
+      .setDepth(151)
+      .setDisplaySize(FRAME_DISPLAY_SIZE, FRAME_DISPLAY_SIZE);
+    uiLayer?.add(this.graphics);
+    uiLayer?.add(this.frame);
     this.reposition();
     scene.scale.on("resize", () => this.reposition());
   }
 
   private reposition() {
     const { width } = this.scene.scale;
-    this.centerX = width - MARGIN - RADIUS_PX;
-    this.centerY = MARGIN + RADIUS_PX;
+    this.centerX = width - MARGIN - FRAME_DISPLAY_SIZE / 2;
+    this.centerY = MARGIN + FRAME_DISPLAY_SIZE / 2;
+    this.frame.setPosition(this.centerX, this.centerY);
   }
 
   update(
@@ -86,9 +96,5 @@ export class Minimap {
     );
     g.fillStyle(0x8ce3ff, 1);
     g.fillCircle(this.centerX, this.centerY, 4);
-
-    // Borde encima de todo, para que quede prolijo
-    g.lineStyle(1.5, 0x8ce3ff, 0.5);
-    g.strokeCircle(this.centerX, this.centerY, RADIUS_PX);
   }
 }

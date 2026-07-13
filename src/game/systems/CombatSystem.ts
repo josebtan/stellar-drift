@@ -21,16 +21,20 @@ export interface CombatCallbacks {
 export class CombatSystem {
   private scene: Phaser.Scene;
   private gravity: GravitySystem;
+  private worldLayer?: Phaser.GameObjects.Layer;
   private projectiles: Projectile[] = [];
   private pickups: ResourcePickup[] = [];
 
-  constructor(scene: Phaser.Scene, gravity: GravitySystem) {
+  constructor(scene: Phaser.Scene, gravity: GravitySystem, worldLayer?: Phaser.GameObjects.Layer) {
     this.scene = scene;
     this.gravity = gravity;
+    this.worldLayer = worldLayer;
   }
 
   fire(x: number, y: number, angle: number) {
-    this.projectiles.push(new Projectile(this.scene, x, y, angle));
+    const projectile = new Projectile(this.scene, x, y, angle);
+    this.projectiles.push(projectile);
+    this.worldLayer?.add(projectile);
   }
 
   update(
@@ -129,6 +133,7 @@ export class CombatSystem {
       this.pickups.push(
         new ResourcePickup(this.scene, x, y, asteroid.resourceType, perPickup, vx, vy)
       );
+      this.worldLayer?.add(this.pickups[this.pickups.length - 1]);
     }
   }
 }

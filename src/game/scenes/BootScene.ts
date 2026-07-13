@@ -3,6 +3,7 @@ import sunSpritesheet from "../../assets/celestial/sun-spritesheet.png";
 import asteroidSpritesheet from "../../assets/celestial/asteroid/asteroid-spritesheet.png";
 import minerShip from "../../assets/ship/miner-ship.png";
 import tradeStation from "../../assets/station/orion-trade-station.png";
+import minimapFrame from "../../assets/ui/minimap-frame.png";
 import { PLANET_CATALOG } from "../planetCatalog";
 import {
   SUN_FRAME_WIDTH,
@@ -41,6 +42,7 @@ export class BootScene extends Phaser.Scene {
 
     this.load.image("ship-miner", minerShip);
     this.load.image("station-orion", tradeStation);
+    this.load.image("minimap-frame", minimapFrame);
 
     for (const [path, url] of Object.entries(planetModules)) {
       // "../../assets/celestial/planets/planet_18.png" -> "planet_18"
