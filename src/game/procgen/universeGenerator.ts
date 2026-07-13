@@ -50,12 +50,19 @@ export interface AsteroidDef {
   vy: number;
 }
 
+export interface StationDef {
+  x: number;
+  y: number;
+  radius: number;
+}
+
 export interface SectorData {
   sectorX: number;
   sectorY: number;
   star: StarDef | null;
   planets: PlanetDef[];
   asteroids: AsteroidDef[];
+  station: StationDef | null;
 }
 
 /**
@@ -92,6 +99,7 @@ export function generateSector(sectorX: number, sectorY: number): SectorData {
       star: null,
       planets: [],
       asteroids: generateRogueAsteroids(rng, sectorCenterX, sectorCenterY),
+      station: null,
     };
   }
 
@@ -156,7 +164,23 @@ export function generateSector(sectorX: number, sectorY: number): SectorData {
   // de la estrella y sus planetas.
   const asteroids = generateBelt(rng, star, planets);
 
-  return { sectorX, sectorY, star, planets, asteroids };
+  // Una estación de comercio por sistema, ubicada más allá de la órbita del
+  // último planeta (no interfiere con nada, y queda "a mano" para cuando
+  // se implemente la mecánica de comercio).
+  const station = generateStation(rng, star, planets);
+
+  return { sectorX, sectorY, star, planets, asteroids, station };
+}
+
+function generateStation(rng: SeededRandom, star: StarDef, planets: PlanetDef[]): StationDef {
+  const baseDistance = planets.length > 0 ? planets[planets.length - 1].orbitDistance : star.radius * 3;
+  const distance = Math.min(baseDistance + rng.range(500, 900), MAX_SYSTEM_RADIUS + 600);
+  const angle = rng.range(0, Math.PI * 2);
+  return {
+    x: star.x + Math.cos(angle) * distance,
+    y: star.y + Math.sin(angle) * distance,
+    radius: rng.range(85, 115),
+  };
 }
 
 function generateBelt(rng: SeededRandom, star: StarDef, planets: PlanetDef[]): AsteroidDef[] {

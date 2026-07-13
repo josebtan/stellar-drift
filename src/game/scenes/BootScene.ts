@@ -1,8 +1,15 @@
 import Phaser from "phaser";
 import sunSpritesheet from "../../assets/celestial/sun-spritesheet.png";
 import asteroidSpritesheet from "../../assets/celestial/asteroid/asteroid-spritesheet.png";
+import minerShip from "../../assets/ship/miner-ship.png";
+import tradeStation from "../../assets/station/orion-trade-station.png";
 import { PLANET_CATALOG } from "../planetCatalog";
-import { SUN_FRAME_SIZE, SUN_FRAME_COUNT, ASTEROID_FRAME_SIZE } from "../assetConstants";
+import {
+  SUN_FRAME_WIDTH,
+  SUN_FRAME_HEIGHT,
+  SUN_FRAME_COUNT,
+  ASTEROID_FRAME_SIZE,
+} from "../assetConstants";
 
 // La generación procedural puede elegir cualquier planeta del catálogo para
 // cualquier sistema estelar, así que precargamos los 16 sprites disponibles.
@@ -21,8 +28,8 @@ export class BootScene extends Phaser.Scene {
 
   preload() {
     this.load.spritesheet("sun", sunSpritesheet, {
-      frameWidth: SUN_FRAME_SIZE,
-      frameHeight: SUN_FRAME_SIZE,
+      frameWidth: SUN_FRAME_WIDTH,
+      frameHeight: SUN_FRAME_HEIGHT,
     });
 
     // El spritesheet de asteroides no es una animación: cada frame es un
@@ -31,6 +38,9 @@ export class BootScene extends Phaser.Scene {
       frameWidth: ASTEROID_FRAME_SIZE,
       frameHeight: ASTEROID_FRAME_SIZE,
     });
+
+    this.load.image("ship-miner", minerShip);
+    this.load.image("station-orion", tradeStation);
 
     for (const [path, url] of Object.entries(planetModules)) {
       // "../../assets/celestial/planets/planet_18.png" -> "planet_18"
@@ -45,7 +55,7 @@ export class BootScene extends Phaser.Scene {
     this.anims.create({
       key: "sun-glow",
       frames: this.anims.generateFrameNumbers("sun", { start: 0, end: SUN_FRAME_COUNT - 1 }),
-      frameRate: 12,
+      frameRate: 10,
       repeat: -1,
     });
 

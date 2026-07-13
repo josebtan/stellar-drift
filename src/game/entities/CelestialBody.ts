@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import { getPlanetSprite } from "../planetCatalog";
+import { SUN_DISC_FRACTION } from "../assetConstants";
 
 export type CelestialType = "star" | "planet";
 
@@ -19,8 +20,6 @@ export interface CelestialBodyConfig {
   orbitSpeed?: number; // radianes / segundo
 }
 
-const SUN_SPRITE_SOURCE_SIZE = 330; // tamaño en px de cada frame del spritesheet
-
 /**
  * Cuerpo celeste masivo (estrella o planeta). Puede tener una órbita
  * kepleriana simple alrededor de un centro (otra estrella).
@@ -35,9 +34,10 @@ export class CelestialBody extends Phaser.GameObjects.Container {
 
     if (config.type === "star") {
       const sprite = scene.add.sprite(0, 0, "sun");
-      // El sprite es 330x330 con glow incluido; lo escalamos para que el
-      // disco visible (~2/3 del frame) coincida con config.radius.
-      const scale = (config.radius * 2) / (SUN_SPRITE_SOURCE_SIZE * 0.66);
+      // El frame no es cuadrado (las llamaradas laterales lo hacen más ancho
+      // que alto), así que escalamos por ALTURA — el disco real ocupa
+      // SUN_DISC_FRACTION de la altura del frame, medido de antemano.
+      const scale = (config.radius * 2) / (sprite.height * SUN_DISC_FRACTION);
       sprite.setScale(scale);
       sprite.play("sun-glow");
       this.add(sprite);

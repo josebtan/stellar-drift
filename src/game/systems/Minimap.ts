@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import type { CelestialBody } from "../entities/CelestialBody";
 import type { Asteroid } from "../entities/Asteroid";
+import type { SpaceStation } from "../entities/SpaceStation";
 import type { PlayerShip } from "../entities/PlayerShip";
 
 const RADIUS_PX = 85; // radio del minimapa en pantalla
@@ -32,7 +33,12 @@ export class Minimap {
     this.centerY = MARGIN + RADIUS_PX;
   }
 
-  update(ship: PlayerShip, celestialBodies: readonly CelestialBody[], asteroids: readonly Asteroid[]) {
+  update(
+    ship: PlayerShip,
+    celestialBodies: readonly CelestialBody[],
+    asteroids: readonly Asteroid[],
+    stations: readonly SpaceStation[]
+  ) {
     const g = this.graphics;
     g.clear();
 
@@ -48,6 +54,16 @@ export class Minimap {
       const isStar = body.config.type === "star";
       g.fillStyle(isStar ? 0xffd27f : 0x9fd9ff, 1);
       g.fillCircle(this.centerX + dx * scale, this.centerY + dy * scale, isStar ? 5 : 2.5);
+    }
+
+    for (const station of stations) {
+      const dx = station.x - ship.x;
+      const dy = station.y - ship.y;
+      if (Math.hypot(dx, dy) > WORLD_RADIUS) continue;
+      g.fillStyle(0x7CFF9E, 1);
+      const px = this.centerX + dx * scale;
+      const py = this.centerY + dy * scale;
+      g.fillRect(px - 3, py - 3, 6, 6);
     }
 
     for (const asteroid of asteroids) {

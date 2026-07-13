@@ -1,5 +1,9 @@
-export const SUN_FRAME_SIZE = 330;
-export const SUN_FRAME_COUNT = 15;
+export const SUN_FRAME_WIDTH = 558;
+export const SUN_FRAME_HEIGHT = 314;
+export const SUN_FRAME_COUNT = 9;
+/** Fracción de la ALTURA del frame ocupada por el disco real (medido en la
+ * columna central, para no contar las llamaradas horizontales de más). */
+export const SUN_DISC_FRACTION = 0.977;
 
 export const ASTEROID_FRAME_SIZE = 220;
 /** 9 modelos de asteroide DISTINTOS (no frames de una animación) — variedad

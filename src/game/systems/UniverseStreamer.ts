@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { GravitySystem } from "../physics/GravitySystem";
 import { CelestialBody } from "../entities/CelestialBody";
 import { Asteroid } from "../entities/Asteroid";
+import { SpaceStation } from "../entities/SpaceStation";
 import { generateSector, worldToSector, SECTOR_SIZE } from "../procgen/universeGenerator";
 
 /** Radio (en sectores) que se mantiene cargado alrededor de la nave. */
@@ -16,6 +17,7 @@ interface LoadedSector {
   star: CelestialBody | null;
   planets: CelestialBody[];
   asteroids: Asteroid[];
+  station: SpaceStation | null;
 }
 
 /**
@@ -32,6 +34,7 @@ export class UniverseStreamer {
   /** Listas planas para que MainScene pueda iterarlas cada frame sin recorrer el Map */
   public celestialBodies: CelestialBody[] = [];
   public asteroids: Asteroid[] = [];
+  public stations: SpaceStation[] = [];
 
   constructor(scene: Phaser.Scene, gravity: GravitySystem) {
     this.scene = scene;
@@ -83,7 +86,7 @@ export class UniverseStreamer {
 
   private loadSector(sx: number, sy: number) {
     const data = generateSector(sx, sy);
-    const loaded: LoadedSector = { star: null, planets: [], asteroids: [] };
+    const loaded: LoadedSector = { star: null, planets: [], asteroids: [], station: null };
 
     if (data.star) {
       const star = new CelestialBody(this.scene, {
@@ -119,6 +122,12 @@ export class UniverseStreamer {
         loaded.planets.push(planet);
         this.celestialBodies.push(planet);
       }
+
+      if (data.station) {
+        const station = new SpaceStation(this.scene, data.station.x, data.station.y, data.station.radius);
+        loaded.station = station;
+        this.stations.push(station);
+      }
     }
 
     for (const a of data.asteroids) {
@@ -153,6 +162,10 @@ export class UniverseStreamer {
     for (const asteroid of sector.asteroids) {
       this.removeFromList(this.asteroids, asteroid);
       if (asteroid.active) asteroid.destroy();
+    }
+    if (sector.station) {
+      this.removeFromList(this.stations, sector.station);
+      sector.station.destroy();
     }
     this.sectors.delete(key);
   }

@@ -8,6 +8,8 @@ const MAX_HULL = 100;
 /** Segundos de invulnerabilidad tras recibir daño o respawnear, para no
  * recibir varios golpes seguidos por seguir superpuesto con lo que chocó. */
 const INVULNERABILITY_SECONDS = 1.5;
+/** Alto deseado de la nave en pantalla (unidades de mundo) */
+const SHIP_DISPLAY_HEIGHT = 46;
 
 /**
  * Nave controlada por el jugador. Implementa LightBody para que
@@ -18,9 +20,9 @@ const INVULNERABILITY_SECONDS = 1.5;
  * direcciones absolutas de mundo (arriba/abajo/izquierda/derecha), no
  * relativa a hacia dónde mira la nave — típico de un twin-stick shooter.
  */
-export class PlayerShip extends Phaser.GameObjects.Triangle implements LightBody {
-  /** Radio de colisión aproximado (la nave es un triángulo ~28x34) */
-  static readonly COLLISION_RADIUS = 15;
+export class PlayerShip extends Phaser.GameObjects.Sprite implements LightBody {
+  /** Radio de colisión aproximado, ajustado al tamaño real del sprite */
+  static readonly COLLISION_RADIUS = 20;
 
   vx = 0;
   vy = 0;
@@ -30,9 +32,12 @@ export class PlayerShip extends Phaser.GameObjects.Triangle implements LightBody
   private thrusting = false;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
-    // Triángulo apuntando "hacia arriba" (punta en -Y) — rotation=0 = arriba
-    super(scene, x, y, 0, -18, -14, 14, 14, 14, 0x123047, 1);
-    this.setStrokeStyle(2, 0x8ce3ff);
+    // El sprite ya viene orientado "hacia arriba" (cabina/motores arriba,
+    // brazos abajo), igual que la convención rotation=0=arriba que usa el
+    // resto del código — no hace falta rotar la textura base.
+    super(scene, x, y, "ship-miner");
+    const scale = SHIP_DISPLAY_HEIGHT / this.height;
+    this.setScale(scale);
     scene.add.existing(this);
   }
 
@@ -49,14 +54,14 @@ export class PlayerShip extends Phaser.GameObjects.Triangle implements LightBody
    * dirección de traslación deseada (mundo absoluto, cada eje en [-1,1],
    * ya normalizado), y `aimAngle` es hacia dónde debe girar la nave
    * (ángulo en pantalla, donde 0 = arriba, coincide con la convención de
-   * `rotation` de este triángulo). La gravedad se aplica aparte.
+   * `rotation` de este sprite). La gravedad se aplica aparte.
    */
   handleInput(dt: number, moveVector: { x: number; y: number }, aimAngle: number | null) {
     if (this.isDestroyed) return;
 
     if (aimAngle !== null) {
-      // El ángulo de Phaser.Math.Angle mide 0=derecha, pero nuestro
-      // triángulo apunta "arriba" en rotation=0, así que sumamos 90°.
+      // El ángulo de Phaser.Math.Angle mide 0=derecha, pero nuestra nave
+      // apunta "arriba" en rotation=0, así que sumamos 90°.
       const target = aimAngle + Math.PI / 2;
       this.rotation = Phaser.Math.Angle.RotateTo(this.rotation, target, TURN_SPEED * dt);
     }

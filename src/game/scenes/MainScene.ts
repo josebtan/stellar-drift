@@ -205,7 +205,7 @@ export class MainScene extends Phaser.Scene {
     }
 
     this.updateStarfield();
-    this.minimap.update(this.ship, this.universe.celestialBodies, this.universe.asteroids);
+    this.minimap.update(this.ship, this.universe.celestialBodies, this.universe.asteroids, this.universe.stations);
     this.input_.redrawTouchControls();
     this.updateHud();
   }
