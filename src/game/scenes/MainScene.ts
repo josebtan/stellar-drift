@@ -92,6 +92,19 @@ export class MainScene extends Phaser.Scene {
       })
       .setScrollFactor(0)
       .setDepth(100);
+
+    const hintText = this.input_?.isTouch
+      ? "Joystick izq: mover — Joystick der: apuntar y disparar — Pellizcar: zoom"
+      : "WASD: mover — Mouse: apuntar — Click: disparar — Rueda: zoom";
+    this.add
+      .text(16, this.scale.height - 26, hintText, {
+        fontFamily: "monospace",
+        fontSize: "12px",
+        color: "#6f95ad",
+      })
+      .setScrollFactor(0)
+      .setDepth(100)
+      .setName("controlsHint");
   }
 
   private createGameOverOverlay() {

@@ -62,9 +62,13 @@ export class InputController {
   // Visuales de los joysticks (solo se crean/muestran en dispositivos táctiles)
   private touchGraphics: Phaser.GameObjects.Graphics | null = null;
 
+  /** true si el dispositivo usa controles táctiles (joysticks) en vez de mouse+teclado */
+  readonly isTouch: boolean;
+
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
     this.isTouchDevice = scene.sys.game.device.input.touch;
+    this.isTouch = this.isTouchDevice;
 
     this.setupKeyboard();
     this.repositionAnchors();
