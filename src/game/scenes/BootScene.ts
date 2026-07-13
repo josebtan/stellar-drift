@@ -55,7 +55,7 @@ export class BootScene extends Phaser.Scene {
     this.anims.create({
       key: "sun-glow",
       frames: this.anims.generateFrameNumbers("sun", { start: 0, end: SUN_FRAME_COUNT - 1 }),
-      frameRate: 10,
+      frameRate: 12,
       repeat: -1,
     });
 
