@@ -1,8 +1,8 @@
 import Phaser from "phaser";
 import type { LightBody } from "../physics/GravitySystem";
 
-const THRUST_ACCEL = 220; // px/s^2
-const ROTATION_SPEED = 3.2; // rad/s
+const THRUST_ACCEL = 260; // px/s^2
+const TURN_SPEED = 6; // rad/s — qué tan rápido gira para encarar el cursor/joystick
 const MAX_SPEED = 600;
 const MAX_HULL = 100;
 /** Segundos de invulnerabilidad tras recibir daño o respawnear, para no
@@ -12,6 +12,11 @@ const INVULNERABILITY_SECONDS = 1.5;
 /**
  * Nave controlada por el jugador. Implementa LightBody para que
  * GravitySystem pueda afectarla igual que a un asteroide.
+ *
+ * Esquema de control: la rotación apunta hacia el cursor/joystick de
+ * apuntado (independiente del movimiento), y la traslación es en
+ * direcciones absolutas de mundo (arriba/abajo/izquierda/derecha), no
+ * relativa a hacia dónde mira la nave — típico de un twin-stick shooter.
  */
 export class PlayerShip extends Phaser.GameObjects.Triangle implements LightBody {
   /** Radio de colisión aproximado (la nave es un triángulo ~28x34) */
@@ -22,31 +27,13 @@ export class PlayerShip extends Phaser.GameObjects.Triangle implements LightBody
   hull = MAX_HULL;
   isDestroyed = false;
   private invulnerableSeconds = 0;
-
-  private keys: {
-    up: Phaser.Input.Keyboard.Key;
-    left: Phaser.Input.Keyboard.Key;
-    right: Phaser.Input.Keyboard.Key;
-  };
-
   private thrusting = false;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
-    // Triángulo apuntando "hacia arriba" (punta en -Y)
+    // Triángulo apuntando "hacia arriba" (punta en -Y) — rotation=0 = arriba
     super(scene, x, y, 0, -18, -14, 14, 14, 14, 0x123047, 1);
     this.setStrokeStyle(2, 0x8ce3ff);
-
     scene.add.existing(this);
-
-    const kb = scene.input.keyboard!;
-    this.keys = {
-      up: kb.addKey(Phaser.Input.Keyboard.KeyCodes.UP),
-      left: kb.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT),
-      right: kb.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT),
-    };
-    kb.addKey(Phaser.Input.Keyboard.KeyCodes.W);
-    kb.addKey(Phaser.Input.Keyboard.KeyCodes.A);
-    kb.addKey(Phaser.Input.Keyboard.KeyCodes.D);
   }
 
   get isThrusting() {
@@ -57,24 +44,27 @@ export class PlayerShip extends Phaser.GameObjects.Triangle implements LightBody
     return this.invulnerableSeconds > 0;
   }
 
-  /** Aplica input del jugador (rotación + empuje). La gravedad se aplica aparte. */
-  handleInput(dt: number) {
+  /**
+   * Aplica el input ya resuelto por InputController: `moveVector` es la
+   * dirección de traslación deseada (mundo absoluto, cada eje en [-1,1],
+   * ya normalizado), y `aimAngle` es hacia dónde debe girar la nave
+   * (ángulo en pantalla, donde 0 = arriba, coincide con la convención de
+   * `rotation` de este triángulo). La gravedad se aplica aparte.
+   */
+  handleInput(dt: number, moveVector: { x: number; y: number }, aimAngle: number | null) {
     if (this.isDestroyed) return;
 
-    const kb = this.scene.input.keyboard!;
-    const left = this.keys.left.isDown || kb.addKey("A").isDown;
-    const right = this.keys.right.isDown || kb.addKey("D").isDown;
-    const up = this.keys.up.isDown || kb.addKey("W").isDown;
+    if (aimAngle !== null) {
+      // El ángulo de Phaser.Math.Angle mide 0=derecha, pero nuestro
+      // triángulo apunta "arriba" en rotation=0, así que sumamos 90°.
+      const target = aimAngle + Math.PI / 2;
+      this.rotation = Phaser.Math.Angle.RotateTo(this.rotation, target, TURN_SPEED * dt);
+    }
 
-    if (left) this.rotation -= ROTATION_SPEED * dt;
-    if (right) this.rotation += ROTATION_SPEED * dt;
-
-    this.thrusting = up;
-    if (up) {
-      // rotation=0 apunta "arriba" (-Y) según los puntos del triángulo
-      const angle = this.rotation - Math.PI / 2;
-      this.vx += Math.cos(angle) * THRUST_ACCEL * dt;
-      this.vy += Math.sin(angle) * THRUST_ACCEL * dt;
+    this.thrusting = moveVector.x !== 0 || moveVector.y !== 0;
+    if (this.thrusting) {
+      this.vx += moveVector.x * THRUST_ACCEL * dt;
+      this.vy += moveVector.y * THRUST_ACCEL * dt;
     }
 
     const speed = Math.hypot(this.vx, this.vy);

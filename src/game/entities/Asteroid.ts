@@ -26,17 +26,27 @@ const RESOURCE_TINTS: Record<ResourceType, number> = {
   rareMineral: 0xcf9dff,
 };
 
+const HEALTH_PER_RADIUS = 2; // a mayor tamaño, más disparos hacen falta
+
 /**
- * Asteroide minable. Es un LightBody: se ve afectado por la
+ * Asteroide destructible a tiros. Es un LightBody: se ve afectado por la
  * gravedad de estrellas/planetas igual que la nave del jugador.
+ *
+ * Tiene dos "vidas" separadas:
+ * - `health`: integridad estructural, baja con cada disparo. Al llegar a 0
+ *   se destruye (ver takeDamage).
+ * - `resourceAmount`: el mineral que suelta como pickups flotantes al
+ *   destruirse (no se gasta con los disparos, es el "premio" final).
  */
 export class Asteroid extends Phaser.GameObjects.Sprite implements LightBody {
   vx: number;
   vy: number;
   resourceType: ResourceType;
-  amountRemaining: number;
+  resourceAmount: number;
   /** Radio "físico" (no visual) usado por gravedad y colisiones */
   radius: number;
+  health: number;
+  maxHealth: number;
 
   constructor(scene: Phaser.Scene, config: AsteroidConfig) {
     const modelIndex = config.modelIndex ?? Phaser.Math.Between(0, ASTEROID_MODEL_COUNT - 1);
@@ -44,8 +54,10 @@ export class Asteroid extends Phaser.GameObjects.Sprite implements LightBody {
     this.vx = config.vx ?? 0;
     this.vy = config.vy ?? 0;
     this.resourceType = config.resourceType;
-    this.amountRemaining = config.amount;
+    this.resourceAmount = config.amount;
     this.radius = config.radius;
+    this.maxHealth = Math.max(8, config.radius * HEALTH_PER_RADIUS);
+    this.health = this.maxHealth;
 
     const discFraction = ASTEROID_MODEL_DISC_FRACTIONS[modelIndex];
     const scale = (config.radius * 2) / (this.width * discFraction);
@@ -64,13 +76,18 @@ export class Asteroid extends Phaser.GameObjects.Sprite implements LightBody {
     this.y += this.vy * dt;
   }
 
-  /** Extrae una cantidad de recurso; devuelve lo realmente extraído. */
-  mine(amount: number): number {
-    const extracted = Math.min(amount, this.amountRemaining);
-    this.amountRemaining -= extracted;
-    if (this.amountRemaining <= 0) {
+  /** Aplica daño de un impacto. Devuelve true si el asteroide se destruyó. */
+  takeDamage(amount: number): boolean {
+    this.health -= amount;
+    // Parpadeo simple al recibir el impacto
+    this.setTint(0xffffff);
+    this.scene.time.delayedCall(60, () => {
+      if (this.active) this.setTint(RESOURCE_TINTS[this.resourceType]);
+    });
+    if (this.health <= 0) {
       this.destroy();
+      return true;
     }
-    return extracted;
+    return false;
   }
 }
