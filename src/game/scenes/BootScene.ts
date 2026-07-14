@@ -4,6 +4,13 @@ import asteroidSpritesheet from "../../assets/celestial/asteroid/asteroid-sprite
 import minerShip from "../../assets/ship/miner-ship.png";
 import tradeStation from "../../assets/station/orion-trade-station.png";
 import minimapFrame from "../../assets/ui/minimap-frame.png";
+import fuelIcon from "../../assets/ui/hud/fuel-icon.png";
+import energyIcon from "../../assets/ui/hud/energy-icon.png";
+import oxygenIcon from "../../assets/ui/hud/oxygen-icon.png";
+import inventoryPanel from "../../assets/ui/hud/inventory-panel.png";
+import powerupShield from "../../assets/ui/hud/powerup-shield.png";
+import powerupSpeed from "../../assets/ui/hud/powerup-speed.png";
+import powerupWeapon from "../../assets/ui/hud/powerup-weapon.png";
 import { PLANET_CATALOG } from "../planetCatalog";
 import {
   SUN_FRAME_WIDTH,
@@ -43,6 +50,13 @@ export class BootScene extends Phaser.Scene {
     this.load.image("ship-miner", minerShip);
     this.load.image("station-orion", tradeStation);
     this.load.image("minimap-frame", minimapFrame);
+    this.load.image("hud-fuel-icon", fuelIcon);
+    this.load.image("hud-energy-icon", energyIcon);
+    this.load.image("hud-oxygen-icon", oxygenIcon);
+    this.load.image("hud-inventory-panel", inventoryPanel);
+    this.load.image("hud-powerup-shield", powerupShield);
+    this.load.image("hud-powerup-speed", powerupSpeed);
+    this.load.image("hud-powerup-weapon", powerupWeapon);
 
     for (const [path, url] of Object.entries(planetModules)) {
       // "../../assets/celestial/planets/planet_18.png" -> "planet_18"

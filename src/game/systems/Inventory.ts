@@ -3,6 +3,8 @@ import type { ResourceType } from "../entities/Asteroid";
 const DEFAULT_CARGO_CAPACITY = 500;
 const DEFAULT_FUEL_CAPACITY = 100;
 const DEFAULT_OXYGEN_CAPACITY = 100;
+const DEFAULT_ENERGY_CAPACITY = 100;
+const ENERGY_REGEN_PER_SEC = 4;
 const STARTING_CREDITS = 150;
 
 /**
@@ -25,8 +27,13 @@ export class Inventory {
   cargoCapacity = DEFAULT_CARGO_CAPACITY;
   fuelCapacity = DEFAULT_FUEL_CAPACITY;
   oxygenCapacity = DEFAULT_OXYGEN_CAPACITY;
+  energyCapacity = DEFAULT_ENERGY_CAPACITY;
 
   fuel = DEFAULT_FUEL_CAPACITY;
+  /** Energía de a bordo: se regenera sola con el tiempo y alimenta los
+   * power-ups (escudo, velocidad, mejora de armamento) — todavía no hay
+   * power-ups activables, pero el recurso ya existe y se ve en el HUD. */
+  energy = DEFAULT_ENERGY_CAPACITY;
   /** Oxígeno/soporte vital, 0-oxygenCapacity. Baja con el tiempo, se repone
    * automáticamente consumiendo "ice" recolectado, o comprando en la estación. */
   oxygen = DEFAULT_OXYGEN_CAPACITY;
@@ -105,6 +112,22 @@ export class Inventory {
     this.oxygen += amount;
   }
 
+  upgradeEnergyCapacity(amount: number) {
+    this.energyCapacity += amount;
+    this.energy += amount;
+  }
+
+  spendEnergy(amount: number): boolean {
+    if (this.energy < amount) return false;
+    this.energy -= amount;
+    return true;
+  }
+
+  /** Debe llamarse cada frame/tick: regenera energía lentamente hasta el tope. */
+  tickEnergyRegen(dt: number) {
+    this.energy = Math.min(this.energyCapacity, this.energy + ENERGY_REGEN_PER_SEC * dt);
+  }
+
   /** Debe llamarse cada frame/tick. Consume oxígeno y repone con hielo disponible. */
   tickLifeSupport(dt: number) {
     const DECAY_PER_SEC = 0.15;
@@ -126,5 +149,6 @@ export class Inventory {
     this.resources = { iron: 0, ice: 0, rareMineral: 0 };
     this.fuel = this.fuelCapacity;
     this.oxygen = this.oxygenCapacity;
+    this.energy = this.energyCapacity;
   }
 }

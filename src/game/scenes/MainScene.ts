@@ -7,6 +7,7 @@ import { checkCollisions } from "../systems/CollisionSystem";
 import { CombatSystem } from "../systems/CombatSystem";
 import { InputController } from "../systems/InputController";
 import { Minimap } from "../systems/Minimap";
+import { GameHud } from "../ui/GameHud";
 import { worldToSector } from "../procgen/universeGenerator";
 
 const STAR_TILE_SIZE = 512;
@@ -27,7 +28,7 @@ export class MainScene extends Phaser.Scene {
   private minimap!: Minimap;
   private ship!: PlayerShip;
   private inventory = new Inventory();
-  private hudText!: Phaser.GameObjects.Text;
+  private gameHud!: GameHud;
   private starTile!: Phaser.GameObjects.TileSprite;
   private gameOverGroup!: Phaser.GameObjects.Container;
   private isGameOver = false;
@@ -119,21 +120,13 @@ export class MainScene extends Phaser.Scene {
   }
 
   private createHud() {
-    this.hudText = this.add
-      .text(16, 16, "", {
-        fontFamily: "monospace",
-        fontSize: "14px",
-        color: "#bfe8ff",
-      })
-      .setScrollFactor(0)
-      .setDepth(100);
-    this.uiLayer.add(this.hudText);
+    this.gameHud = new GameHud(this, this.uiLayer);
 
     const hintText = this.input_?.isTouch
       ? "Joystick izq: mover — Joystick der: apuntar y disparar — Pellizcar: zoom"
       : "WASD: mover — Mouse: apuntar — Click: disparar — Rueda: zoom";
     const hint = this.add
-      .text(16, this.scale.height - 26, hintText, {
+      .text(16, this.scale.height - 22, hintText, {
         fontFamily: "monospace",
         fontSize: "12px",
         color: "#6f95ad",
@@ -144,7 +137,7 @@ export class MainScene extends Phaser.Scene {
     this.uiLayer.add(hint);
 
     this.scale.on("resize", (size: Phaser.Structs.Size) => {
-      hint.setPosition(16, size.height - 26);
+      hint.setPosition(16, size.height - 22);
     });
   }
 
@@ -248,11 +241,19 @@ export class MainScene extends Phaser.Scene {
     if (!this.ship.isDestroyed) {
       this.inventory.tickLifeSupport(dt);
     }
+    this.inventory.tickEnergyRegen(dt);
 
     this.updateStarfield();
     this.minimap.update(this.ship, this.universe.celestialBodies, this.universe.asteroids, this.universe.stations);
     this.input_.redrawTouchControls();
-    this.updateHud();
+
+    const { sx, sy } = worldToSector(this.ship.x, this.ship.y);
+    this.gameHud.update(this.ship, this.inventory, {
+      speed: Math.round(Math.hypot(this.ship.vx, this.ship.vy)),
+      zoom: this.zoom,
+      sectorX: sx,
+      sectorY: sy,
+    });
   }
 
   private handleFiring(dt: number, aimAngle: number | null) {
@@ -283,18 +284,4 @@ export class MainScene extends Phaser.Scene {
     this.starTile.tilePositionY = this.cameras.main.scrollY * 0.15;
   }
 
-  private updateHud() {
-    const res = this.inventory.getAll();
-    const speed = Math.hypot(this.ship.vx, this.ship.vy).toFixed(0);
-    const { sx, sy } = worldToSector(this.ship.x, this.ship.y);
-    const cargoWarning = this.inventory.isCargoFull ? "  ⚠ CARGA LLENA — vendé en una estación" : "";
-    this.hudText.setText(
-      [
-        `Casco: ${this.ship.hull.toFixed(0)}%   Oxígeno: ${this.inventory.oxygen.toFixed(0)}/${this.inventory.oxygenCapacity}`,
-        `Combustible: ${this.inventory.fuel.toFixed(0)}/${this.inventory.fuelCapacity}   Créditos: ${this.inventory.credits.toFixed(0)}`,
-        `Velocidad: ${speed}   Zoom: ${this.zoom.toFixed(2)}x   Sector: ${sx}, ${sy}`,
-        `Carga: ${this.inventory.totalCargoUsed.toFixed(0)}/${this.inventory.cargoCapacity} (Fe:${res.iron.toFixed(0)} Hielo:${res.ice.toFixed(0)} Raro:${res.rareMineral.toFixed(0)})${cargoWarning}`,
-      ].join("\n")
-    );
-  }
 }
