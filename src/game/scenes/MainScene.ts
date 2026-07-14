@@ -15,6 +15,9 @@ const SHIP_SPAWN_Y = 0;
 const FIRE_COOLDOWN = 0.15; // segundos entre disparos
 const MIN_ZOOM = 0.45;
 const MAX_ZOOM = 2.2;
+/** Combustible por segundo mientras la nave se impulsa; con el tanque base
+ * (100) da ~14s de empuje continuo antes de quedarse sin combustible. */
+const FUEL_CONSUMPTION_PER_SEC = 7;
 
 export class MainScene extends Phaser.Scene {
   private gravity = new GravitySystem();
@@ -213,10 +216,13 @@ export class MainScene extends Phaser.Scene {
     if (!this.ship.isDestroyed) {
       const moveVector = this.input_.getMoveVector();
       const aimAngle = this.input_.getAimAngle();
-      this.ship.handleInput(dt, moveVector, aimAngle);
+      this.ship.handleInput(dt, moveVector, aimAngle, this.inventory.hasFuel);
       this.gravity.step(this.ship, dt);
       this.ship.applyVelocity(dt);
       this.handleFiring(dt, aimAngle);
+      if (this.ship.isThrusting) {
+        this.inventory.consumeFuel(FUEL_CONSUMPTION_PER_SEC * dt);
+      }
     }
 
     // Gravedad + integración de asteroides
@@ -281,12 +287,13 @@ export class MainScene extends Phaser.Scene {
     const res = this.inventory.getAll();
     const speed = Math.hypot(this.ship.vx, this.ship.vy).toFixed(0);
     const { sx, sy } = worldToSector(this.ship.x, this.ship.y);
+    const cargoWarning = this.inventory.isCargoFull ? "  ⚠ CARGA LLENA — vendé en una estación" : "";
     this.hudText.setText(
       [
-        `Casco: ${this.ship.hull.toFixed(0)}%   Soporte vital: ${this.inventory.lifeSupport.toFixed(0)}%`,
-        `Velocidad: ${speed}   Zoom: ${this.zoom.toFixed(2)}x`,
-        `Sector: ${sx}, ${sy}`,
-        `Hierro: ${res.iron.toFixed(0)}  Hielo: ${res.ice.toFixed(0)}  Mineral raro: ${res.rareMineral.toFixed(0)}`,
+        `Casco: ${this.ship.hull.toFixed(0)}%   Oxígeno: ${this.inventory.oxygen.toFixed(0)}/${this.inventory.oxygenCapacity}`,
+        `Combustible: ${this.inventory.fuel.toFixed(0)}/${this.inventory.fuelCapacity}   Créditos: ${this.inventory.credits.toFixed(0)}`,
+        `Velocidad: ${speed}   Zoom: ${this.zoom.toFixed(2)}x   Sector: ${sx}, ${sy}`,
+        `Carga: ${this.inventory.totalCargoUsed.toFixed(0)}/${this.inventory.cargoCapacity} (Fe:${res.iron.toFixed(0)} Hielo:${res.ice.toFixed(0)} Raro:${res.rareMineral.toFixed(0)})${cargoWarning}`,
       ].join("\n")
     );
   }

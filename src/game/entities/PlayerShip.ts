@@ -56,7 +56,12 @@ export class PlayerShip extends Phaser.GameObjects.Sprite implements LightBody {
    * (ángulo en pantalla, donde 0 = arriba, coincide con la convención de
    * `rotation` de este sprite). La gravedad se aplica aparte.
    */
-  handleInput(dt: number, moveVector: { x: number; y: number }, aimAngle: number | null) {
+  handleInput(
+    dt: number,
+    moveVector: { x: number; y: number },
+    aimAngle: number | null,
+    hasFuel: boolean
+  ) {
     if (this.isDestroyed) return;
 
     if (aimAngle !== null) {
@@ -66,7 +71,8 @@ export class PlayerShip extends Phaser.GameObjects.Sprite implements LightBody {
       this.rotation = Phaser.Math.Angle.RotateTo(this.rotation, target, TURN_SPEED * dt);
     }
 
-    this.thrusting = moveVector.x !== 0 || moveVector.y !== 0;
+    const wantsThrust = moveVector.x !== 0 || moveVector.y !== 0;
+    this.thrusting = wantsThrust && hasFuel;
     if (this.thrusting) {
       this.vx += moveVector.x * THRUST_ACCEL * dt;
       this.vy += moveVector.y * THRUST_ACCEL * dt;

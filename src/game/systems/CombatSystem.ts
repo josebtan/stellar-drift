@@ -111,9 +111,19 @@ export class CombatSystem {
       if (!ship.isDestroyed) {
         const dist = Phaser.Math.Distance.Between(ship.x, ship.y, pickup.x, pickup.y);
         if (dist <= PICKUP_RADIUS + PlayerShip.COLLISION_RADIUS) {
-          inventory.add(pickup.resourceType, pickup.amount);
-          pickup.destroy();
-          this.pickups.splice(i, 1);
+          if (inventory.isCargoFull) {
+            // Carga llena: el mineral se queda flotando en vez de perderse.
+            continue;
+          }
+          const added = inventory.add(pickup.resourceType, pickup.amount);
+          if (added >= pickup.amount) {
+            pickup.destroy();
+            this.pickups.splice(i, 1);
+          } else {
+            // Solo entró una parte (la carga se llenó a mitad de camino):
+            // el resto sigue flotando para recogerlo después.
+            pickup.amount -= added;
+          }
         }
       }
     }
