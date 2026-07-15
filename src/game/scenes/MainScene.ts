@@ -7,10 +7,10 @@ import { checkCollisions } from "../systems/CollisionSystem";
 import { CombatSystem } from "../systems/CombatSystem";
 import { InputController } from "../systems/InputController";
 import { Minimap } from "../systems/Minimap";
+import { ParallaxBackground } from "../systems/ParallaxBackground";
 import { GameHud } from "../ui/GameHud";
 import { worldToSector } from "../procgen/universeGenerator";
 
-const STAR_TILE_SIZE = 512;
 const SHIP_SPAWN_X = 400;
 const SHIP_SPAWN_Y = 0;
 const FIRE_COOLDOWN = 0.15; // segundos entre disparos
@@ -29,7 +29,7 @@ export class MainScene extends Phaser.Scene {
   private ship!: PlayerShip;
   private inventory = new Inventory();
   private gameHud!: GameHud;
-  private starTile!: Phaser.GameObjects.TileSprite;
+  private parallax!: ParallaxBackground;
   private gameOverGroup!: Phaser.GameObjects.Container;
   private isGameOver = false;
   private fireCooldown = 0;
@@ -55,7 +55,11 @@ export class MainScene extends Phaser.Scene {
     this.worldLayer = this.add.layer();
     this.uiLayer = this.add.layer();
 
-    this.createStarfield();
+    // El fondo de estrellas es parte del MUNDO (cámara principal, con
+    // zoom), con profundidad muy negativa para quedar siempre detrás de
+    // todo — antes vivía en la capa de UI y por eso se dibujaba encima de
+    // la nave y otros objetos (la cámara de UI se renderiza después).
+    this.parallax = new ParallaxBackground(this, this.worldLayer);
 
     this.universe = new UniverseStreamer(this, this.gravity, this.worldLayer);
     this.universe.primeAround(SHIP_SPAWN_X, SHIP_SPAWN_Y);
@@ -91,33 +95,6 @@ export class MainScene extends Phaser.Scene {
     this.input.keyboard!.on("keydown-R", () => {
       if (this.isGameOver) this.respawnShip();
     });
-  }
-
-  private createStarfield() {
-    // Textura pequeña con puntos aleatorios, usada como tile infinito. Al no
-    // depender de un WORLD_SIZE fijo, funciona igual de bien cerca del
-    // origen que a millones de unidades de distancia. Vive en la capa de UI
-    // (cámara sin zoom): un fondo estelar lejano no debería encogerse o
-    // agrandarse al hacer zoom sobre el sistema, solo desplazarse con
-    // paralaje — así se ve estable en vez de "saltar" al cambiar el zoom.
-    const gfx = this.add.graphics();
-    for (let i = 0; i < 140; i++) {
-      const x = Phaser.Math.Between(0, STAR_TILE_SIZE);
-      const y = Phaser.Math.Between(0, STAR_TILE_SIZE);
-      const r = Phaser.Math.FloatBetween(0.5, 1.6);
-      const alpha = Phaser.Math.FloatBetween(0.3, 1);
-      gfx.fillStyle(0xffffff, alpha);
-      gfx.fillCircle(x, y, r);
-    }
-    gfx.generateTexture("starfield-tile", STAR_TILE_SIZE, STAR_TILE_SIZE);
-    gfx.destroy();
-
-    this.starTile = this.add
-      .tileSprite(0, 0, this.scale.width, this.scale.height, "starfield-tile")
-      .setOrigin(0, 0)
-      .setScrollFactor(0)
-      .setDepth(-10);
-    this.uiLayer.add(this.starTile);
   }
 
   private createHud() {
@@ -244,7 +221,7 @@ export class MainScene extends Phaser.Scene {
     }
     this.inventory.tickEnergyRegen(dt);
 
-    this.updateStarfield();
+    this.parallax.update();
     this.minimap.update(this.ship, this.universe.celestialBodies, this.universe.asteroids, this.universe.stations);
     this.input_.redrawTouchControls();
 
@@ -275,14 +252,6 @@ export class MainScene extends Phaser.Scene {
       this.zoom = Phaser.Math.Clamp(this.zoom + delta, MIN_ZOOM, MAX_ZOOM);
       this.cameras.main.setZoom(this.zoom);
     }
-  }
-
-  private updateStarfield() {
-    // Mantiene el tile del tamaño de la ventana (por si hubo resize) y lo
-    // desplaza con leve paralaje respecto a la cámara.
-    this.starTile.setSize(this.scale.width, this.scale.height);
-    this.starTile.tilePositionX = this.cameras.main.scrollX * 0.15;
-    this.starTile.tilePositionY = this.cameras.main.scrollY * 0.15;
   }
 
 }
