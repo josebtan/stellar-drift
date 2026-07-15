@@ -2,15 +2,15 @@ import Phaser from "phaser";
 import type { LightBody } from "../physics/GravitySystem";
 import type { ResourceType } from "./Asteroid";
 
-export const PICKUP_RADIUS = 7;
+export const PICKUP_RADIUS = 11;
 /** Tiempo antes de que un mineral no recogido se disipe, para no acumular
  * objetos sin límite en sectores donde el jugador ya no vuelve. */
 const PICKUP_LIFESPAN = 45;
 
-const RESOURCE_COLORS: Record<ResourceType, number> = {
-  iron: 0xb3a48c,
-  ice: 0x9fd9ff,
-  rareMineral: 0xcf9dff,
+const ORE_ICON_KEYS: Record<ResourceType, string> = {
+  iron: "ore-iron",
+  ice: "ore-ice",
+  rareMineral: "ore-rareMineral",
 };
 
 /**
@@ -19,12 +19,13 @@ const RESOURCE_COLORS: Record<ResourceType, number> = {
  * que a un asteroide, así que no quedan "clavados" de forma antinatural.
  * La nave lo recoge automáticamente al pasar por encima (sin botón).
  */
-export class ResourcePickup extends Phaser.GameObjects.Arc implements LightBody {
+export class ResourcePickup extends Phaser.GameObjects.Image implements LightBody {
   vx: number;
   vy: number;
   resourceType: ResourceType;
   amount: number;
   private timeToLive = PICKUP_LIFESPAN;
+  private spinSpeed: number;
 
   constructor(
     scene: Phaser.Scene,
@@ -35,12 +36,14 @@ export class ResourcePickup extends Phaser.GameObjects.Arc implements LightBody 
     vx: number,
     vy: number
   ) {
-    super(scene, x, y, PICKUP_RADIUS, 0, 360, false, RESOURCE_COLORS[resourceType], 1);
+    super(scene, x, y, ORE_ICON_KEYS[resourceType]);
     this.resourceType = resourceType;
     this.amount = amount;
     this.vx = vx;
     this.vy = vy;
-    this.setStrokeStyle(1, 0xffffff, 0.5);
+    this.setDisplaySize(PICKUP_RADIUS * 2, PICKUP_RADIUS * 2);
+    this.setRotation(Phaser.Math.FloatBetween(0, Math.PI * 2));
+    this.spinSpeed = Phaser.Math.FloatBetween(-1.2, 1.2);
     scene.add.existing(this);
   }
 
@@ -48,6 +51,7 @@ export class ResourcePickup extends Phaser.GameObjects.Arc implements LightBody 
   applyVelocity(dt: number): boolean {
     this.x += this.vx * dt;
     this.y += this.vy * dt;
+    this.rotation += this.spinSpeed * dt;
     this.timeToLive -= dt;
     return this.timeToLive > 0;
   }

@@ -63,6 +63,7 @@ export class MainScene extends Phaser.Scene {
 
     this.ship = new PlayerShip(this, SHIP_SPAWN_X, SHIP_SPAWN_Y);
     this.worldLayer.add(this.ship);
+    this.worldLayer.add(this.ship.shieldEffect);
     // lerp=1: la nave queda perfectamente centrada cada frame, sin retraso.
     this.cameras.main.startFollow(this.ship, true, 1, 1);
     this.cameras.main.setZoom(this.zoom);

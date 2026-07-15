@@ -10,6 +10,8 @@ const MAX_HULL = 100;
 const INVULNERABILITY_SECONDS = 1.5;
 /** Alto deseado de la nave en pantalla (unidades de mundo) */
 const SHIP_DISPLAY_HEIGHT = 46;
+/** El efecto de escudo se ve mejor un poco más grande que la nave */
+const SHIELD_EFFECT_SIZE = SHIP_DISPLAY_HEIGHT * 1.8;
 
 /**
  * Nave controlada por el jugador. Implementa LightBody para que
@@ -31,6 +33,11 @@ export class PlayerShip extends Phaser.GameObjects.Sprite implements LightBody {
   private invulnerableSeconds = 0;
   private thrusting = false;
 
+  /** Destello de escudo (spritesheet provisto): se reproduce al recibir
+   * daño o al respawnear, dando feedback visual de "invulnerabilidad
+   * activa" más claro que solo el parpadeo de alpha. */
+  readonly shieldEffect: Phaser.GameObjects.Sprite;
+
   constructor(scene: Phaser.Scene, x: number, y: number) {
     // El sprite ya viene orientado "hacia arriba" (cabina/motores arriba,
     // brazos abajo), igual que la convención rotation=0=arriba que usa el
@@ -39,6 +46,13 @@ export class PlayerShip extends Phaser.GameObjects.Sprite implements LightBody {
     const scale = SHIP_DISPLAY_HEIGHT / this.height;
     this.setScale(scale);
     scene.add.existing(this);
+
+    this.shieldEffect = scene.add
+      .sprite(x, y, "shield-burst")
+      .setDisplaySize(SHIELD_EFFECT_SIZE, SHIELD_EFFECT_SIZE)
+      .setVisible(false)
+      .setDepth(this.depth + 1);
+    this.shieldEffect.on("animationcomplete", () => this.shieldEffect.setVisible(false));
   }
 
   get isThrusting() {
@@ -102,6 +116,16 @@ export class PlayerShip extends Phaser.GameObjects.Sprite implements LightBody {
     } else if (this.alpha !== 1) {
       this.setAlpha(1);
     }
+
+    if (this.shieldEffect.visible) {
+      this.shieldEffect.setPosition(this.x, this.y);
+    }
+  }
+
+  private playShieldEffect() {
+    this.shieldEffect.setPosition(this.x, this.y);
+    this.shieldEffect.setVisible(true);
+    this.shieldEffect.play("shield-burst-anim");
   }
 
   /** Daño por impacto (ej. choque con asteroide). No aplica si está invulnerable. */
@@ -109,6 +133,7 @@ export class PlayerShip extends Phaser.GameObjects.Sprite implements LightBody {
     if (this.isDestroyed || this.isInvulnerable) return false;
     this.hull = Math.max(0, this.hull - amount);
     this.invulnerableSeconds = INVULNERABILITY_SECONDS;
+    this.playShieldEffect();
     if (this.hull <= 0) {
       this.destroyShip();
     }
@@ -123,6 +148,7 @@ export class PlayerShip extends Phaser.GameObjects.Sprite implements LightBody {
     this.vx = 0;
     this.vy = 0;
     this.setVisible(false);
+    this.shieldEffect.setVisible(false);
   }
 
   /** Reinicia la nave en una posición segura tras la pantalla de "nave destruida". */
@@ -137,5 +163,6 @@ export class PlayerShip extends Phaser.GameObjects.Sprite implements LightBody {
     this.invulnerableSeconds = INVULNERABILITY_SECONDS;
     this.setVisible(true);
     this.setAlpha(1);
+    this.playShieldEffect();
   }
 }

@@ -2,29 +2,25 @@ import Phaser from "phaser";
 import type { Inventory } from "../systems/Inventory";
 import type { PlayerShip } from "../entities/PlayerShip";
 import type { ResourceType } from "../entities/Asteroid";
+import {
+  BAR_IMAGE_WIDTH,
+  BAR_IMAGE_HEIGHT,
+  BAR_HOLE_X,
+  BAR_HOLE_Y,
+  BAR_HOLE_WIDTH,
+  BAR_HOLE_HEIGHT,
+} from "../assetConstants";
 
-const BAR_WIDTH = 150;
-const BAR_HEIGHT = 12;
-const ICON_DISPLAY_SIZE = 32;
-const ROW_HEIGHT = 40;
+const BAR_DISPLAY_WIDTH = 220;
+const BAR_SCALE = BAR_DISPLAY_WIDTH / BAR_IMAGE_WIDTH;
+const BAR_DISPLAY_HEIGHT = BAR_IMAGE_HEIGHT * BAR_SCALE;
+const ROW_HEIGHT = BAR_DISPLAY_HEIGHT + 8;
 const MARGIN = 16;
-const BLOCK_WIDTH = ICON_DISPLAY_SIZE + 8 + BAR_WIDTH + 8 + 40; // icono + gap + barra + gap + "100%"
 
-const INVENTORY_PANEL_WIDTH = 230;
-const INVENTORY_PANEL_HEIGHT = 213;
-
-interface BarRow {
-  icon: Phaser.GameObjects.Image | Phaser.GameObjects.Rectangle;
-  label: Phaser.GameObjects.Text;
-  track: Phaser.GameObjects.Rectangle;
-  fill: Phaser.GameObjects.Rectangle;
-  pctText: Phaser.GameObjects.Text;
-}
-
-const RESOURCE_TINTS: Record<ResourceType, number> = {
-  iron: 0xb3a48c,
-  ice: 0x9fd9ff,
-  rareMineral: 0xcf9dff,
+const ORE_ICON_KEYS: Record<ResourceType, string> = {
+  iron: "ore-iron",
+  ice: "ore-ice",
+  rareMineral: "ore-rareMineral",
 };
 
 type PowerupState = "active" | "inUse" | "critical" | "disabled";
@@ -35,10 +31,28 @@ const POWERUP_STATE_COLORS: Record<PowerupState, number> = {
   disabled: 0x555555,
 };
 
+interface BarRow {
+  frame: Phaser.GameObjects.Image;
+  bg: Phaser.GameObjects.Rectangle;
+  fill: Phaser.GameObjects.Rectangle;
+  label: Phaser.GameObjects.Text;
+  pctText: Phaser.GameObjects.Text;
+}
+
+const INVENTORY_PANEL_WIDTH = 230;
+const INVENTORY_PANEL_HEIGHT = 213;
+
 /**
  * HUD estilizado, todo alineado a la derecha salvo los power-ups (centrados
- * abajo): minimapa arriba a la derecha (ver Minimap.ts), barras de estado
- * justo encima del inventario, inventario en la esquina inferior derecha.
+ * abajo): minimapa arriba a la derecha (Minimap.ts), barras de estado justo
+ * encima del inventario, inventario en la esquina inferior derecha.
+ *
+ * Las barras usan el arte real provisto: cada imagen de barra ya trae un
+ * "agujero" recortado con alpha=0 real donde debe ir el relleno — se
+ * dibuja un rectángulo de color dinámico DETRÁS de esa imagen (con un
+ * fondo oscuro detrás del rectángulo, para la parte no rellenada), y el
+ * marco con el agujero queda encima, dando un resultado pixel-perfect sin
+ * tener que fabricar la barra a mano.
  */
 export class GameHud {
   private scene: Phaser.Scene;
@@ -50,8 +64,8 @@ export class GameHud {
   private infoText!: Phaser.GameObjects.Text;
 
   private inventoryPanel!: Phaser.GameObjects.Image;
+  private inventoryIcons: Partial<Record<ResourceType, Phaser.GameObjects.Image>> = {};
   private inventoryTexts: Partial<Record<ResourceType, Phaser.GameObjects.Text>> = {};
-  private inventoryDots: Partial<Record<ResourceType, Phaser.GameObjects.Arc>> = {};
   private cargoWarningText!: Phaser.GameObjects.Text;
 
   private powerupIcons: { key: string; image: Phaser.GameObjects.Image; ring: Phaser.GameObjects.Arc }[] = [];
@@ -60,9 +74,9 @@ export class GameHud {
     this.scene = scene;
 
     this.hullBar = this.makeBar(uiLayer, null, 0xff6b6b, "CASCO");
-    this.fuelBar = this.makeBar(uiLayer, "hud-fuel-icon", 0xf0a339, "COMBUSTIBLE");
-    this.energyBar = this.makeBar(uiLayer, "hud-energy-icon", 0x3d9bf0, "ENERGÍA");
-    this.oxygenBar = this.makeBar(uiLayer, "hud-oxygen-icon", 0x3ddbf0, "OXÍGENO");
+    this.fuelBar = this.makeBar(uiLayer, "hud-fuel-bar", 0xf0a339, "COMBUSTIBLE");
+    this.energyBar = this.makeBar(uiLayer, "hud-energy-bar", 0x3d9bf0, "ENERGÍA");
+    this.oxygenBar = this.makeBar(uiLayer, "hud-oxygen-bar", 0x3ddbf0, "OXÍGENO");
 
     this.infoText = this.scene.add
       .text(0, 0, "", { fontFamily: "monospace", fontSize: "12px", color: "#8ab" })
@@ -80,64 +94,83 @@ export class GameHud {
 
   // ---------------------------------------------------------- Stat bars ----
 
-  /** Crea una fila de barra sin posicionarla todavía (reposition() la ubica). */
   private makeBar(
     uiLayer: Phaser.GameObjects.Layer,
-    iconKey: string | null,
+    imageKey: string | null,
     color: number,
     label: string
   ): BarRow {
-    const icon = iconKey
-      ? this.scene.add.image(0, 0, iconKey).setDisplaySize(ICON_DISPLAY_SIZE, ICON_DISPLAY_SIZE)
-      : this.scene.add.rectangle(0, 0, 14, 14, color).setAngle(45);
-    icon.setScrollFactor(0).setDepth(100);
-    uiLayer.add(icon);
-
     const label_ = this.scene.add
       .text(0, 0, label, { fontFamily: "monospace", fontSize: "10px", color: "#9fb8c8" })
       .setScrollFactor(0)
       .setDepth(100);
     uiLayer.add(label_);
 
-    const track = this.scene.add
-      .rectangle(0, 0, BAR_WIDTH, BAR_HEIGHT, 0x0a0f16, 0.9)
-      .setOrigin(0, 0.5)
-      .setStrokeStyle(1, 0x2a3a45)
-      .setScrollFactor(0)
-      .setDepth(100);
-    uiLayer.add(track);
+    let frame: Phaser.GameObjects.Image;
+    let bg: Phaser.GameObjects.Rectangle;
+    let fill: Phaser.GameObjects.Rectangle;
 
-    const fill = this.scene.add
-      .rectangle(0, 0, BAR_WIDTH - 2, BAR_HEIGHT - 2, color, 1)
-      .setOrigin(0, 0.5)
-      .setScrollFactor(0)
-      .setDepth(101);
-    uiLayer.add(fill);
+    if (imageKey) {
+      bg = this.scene.add.rectangle(0, 0, BAR_HOLE_WIDTH * BAR_SCALE, BAR_HOLE_HEIGHT * BAR_SCALE, 0x0a0f16, 0.95);
+      bg.setOrigin(0, 0.5).setScrollFactor(0).setDepth(100);
+      uiLayer.add(bg);
+
+      fill = this.scene.add.rectangle(0, 0, 0, BAR_HOLE_HEIGHT * BAR_SCALE - 2, color, 1);
+      fill.setOrigin(0, 0.5).setScrollFactor(0).setDepth(101);
+      uiLayer.add(fill);
+
+      frame = this.scene.add
+        .image(0, 0, imageKey)
+        .setDisplaySize(BAR_DISPLAY_WIDTH, BAR_DISPLAY_HEIGHT)
+        .setOrigin(0, 0)
+        .setScrollFactor(0)
+        .setDepth(102);
+      uiLayer.add(frame);
+    } else {
+      // El casco no tiene imagen propia: una barra simple genérica alcanza.
+      const w = BAR_HOLE_WIDTH * BAR_SCALE;
+      const h = BAR_HOLE_HEIGHT * BAR_SCALE;
+      bg = this.scene.add.rectangle(0, 0, w, h, 0x0a0f16, 0.95);
+      bg.setOrigin(0, 0.5).setStrokeStyle(1, 0x2a3a45).setScrollFactor(0).setDepth(100);
+      uiLayer.add(bg);
+
+      fill = this.scene.add.rectangle(0, 0, 0, h - 2, color, 1);
+      fill.setOrigin(0, 0.5).setScrollFactor(0).setDepth(101);
+      uiLayer.add(fill);
+
+      frame = this.scene.add.image(0, 0, "hud-fuel-bar").setVisible(false); // placeholder inerte
+      uiLayer.add(frame);
+    }
 
     const pctText = this.scene.add
       .text(0, 0, "100%", { fontFamily: "monospace", fontSize: "11px", color: "#cfe8f5" })
       .setScrollFactor(0)
-      .setDepth(100);
+      .setDepth(102);
     uiLayer.add(pctText);
 
-    return { icon, label: label_, track, fill, pctText };
+    return { frame, bg, fill, label: label_, pctText };
   }
 
-  private layoutBar(bar: BarRow, blockX: number, y: number) {
-    bar.icon.setPosition(blockX + ICON_DISPLAY_SIZE / 2, y + ROW_HEIGHT / 2 - 8);
-    const barX = blockX + ICON_DISPLAY_SIZE + 8;
-    bar.label.setPosition(barX, y - 2);
-    bar.track.setPosition(barX, y + 12);
-    // Mantiene el ancho actual del relleno (proporcional) al reposicionar
-    const currentFraction = bar.track.width > 0 ? bar.fill.width / (bar.track.width - 2) : 1;
-    bar.fill.setPosition(barX + 1, y + 12);
-    bar.fill.width = Math.max(0, (BAR_WIDTH - 2) * currentFraction);
-    bar.pctText.setPosition(barX + BAR_WIDTH + 8, y + 5);
+  private layoutBar(bar: BarRow, x: number, y: number, hasImage: boolean) {
+    const holeX = hasImage ? x + BAR_HOLE_X * BAR_SCALE : x;
+    const holeY = hasImage ? y + BAR_HOLE_Y * BAR_SCALE : y + BAR_DISPLAY_HEIGHT / 2;
+    const holeW = BAR_HOLE_WIDTH * BAR_SCALE;
+
+    bar.label.setPosition(x, y - 13);
+    bar.bg.setPosition(holeX, holeY);
+    // Mantiene la fracción actual del relleno al reposicionar (ej. resize)
+    const currentFraction = bar.bg.width > 0 ? bar.fill.width / bar.bg.width : 1;
+    bar.fill.setPosition(holeX, holeY);
+    bar.fill.width = holeW * currentFraction;
+    if (hasImage) {
+      bar.frame.setPosition(x, y);
+    }
+    bar.pctText.setPosition(x + BAR_DISPLAY_WIDTH + 8, holeY - 7);
   }
 
   private setBarValue(bar: BarRow, current: number, max: number) {
     const fraction = max > 0 ? Phaser.Math.Clamp(current / max, 0, 1) : 0;
-    bar.fill.width = Math.max(0, (BAR_WIDTH - 2) * fraction);
+    bar.fill.width = bar.bg.width * fraction;
     bar.pctText.setText(`${Math.round(fraction * 100)}%`);
   }
 
@@ -153,13 +186,13 @@ export class GameHud {
 
     const types: ResourceType[] = ["iron", "ice", "rareMineral"];
     types.forEach((type) => {
-      const dot = this.scene.add
-        .circle(0, 0, 9, RESOURCE_TINTS[type])
+      const icon = this.scene.add
+        .image(0, 0, ORE_ICON_KEYS[type])
+        .setDisplaySize(40, 40)
         .setScrollFactor(0)
-        .setDepth(101)
-        .setStrokeStyle(1, 0xffffff, 0.4);
-      uiLayer.add(dot);
-      this.inventoryDots[type] = dot;
+        .setDepth(101);
+      uiLayer.add(icon);
+      this.inventoryIcons[type] = icon;
 
       const text = this.scene.add
         .text(0, 0, "0", { fontFamily: "monospace", fontSize: "11px", color: "#e8f4ff" })
@@ -196,7 +229,7 @@ export class GameHud {
 
       const image = this.scene.add
         .image(0, 0, def.key)
-        .setDisplaySize(28, 34)
+        .setDisplaySize(30, 30)
         .setTint(POWERUP_STATE_COLORS.disabled)
         .setAlpha(0.55)
         .setScrollFactor(0)
@@ -232,23 +265,23 @@ export class GameHud {
     const types: ResourceType[] = ["iron", "ice", "rareMineral"];
     types.forEach((type, i) => {
       const cx = invX + 46 + i * 68;
-      const cy = invY + 48;
-      this.inventoryDots[type]?.setPosition(cx, cy);
-      this.inventoryTexts[type]?.setPosition(cx, cy + 14);
+      const cy = invY + 46;
+      this.inventoryIcons[type]?.setPosition(cx, cy);
+      this.inventoryTexts[type]?.setPosition(cx, cy + 24);
     });
     this.cargoWarningText.setPosition(invX + INVENTORY_PANEL_WIDTH / 2, invY + INVENTORY_PANEL_HEIGHT - 18);
 
     // Barras de estado: alineadas a la derecha, apiladas justo encima del
     // inventario (mismo borde derecho que el panel).
-    const blockX = width - MARGIN - BLOCK_WIDTH;
+    const barX = width - MARGIN - BAR_DISPLAY_WIDTH;
     const infoTextHeight = 16;
     const barsBottomY = invY - 10;
     const barsTopY = barsBottomY - infoTextHeight - ROW_HEIGHT * 4;
 
-    this.layoutBar(this.hullBar, blockX, barsTopY);
-    this.layoutBar(this.fuelBar, blockX, barsTopY + ROW_HEIGHT);
-    this.layoutBar(this.energyBar, blockX, barsTopY + ROW_HEIGHT * 2);
-    this.layoutBar(this.oxygenBar, blockX, barsTopY + ROW_HEIGHT * 3);
+    this.layoutBar(this.hullBar, barX, barsTopY, false);
+    this.layoutBar(this.fuelBar, barX, barsTopY + ROW_HEIGHT, true);
+    this.layoutBar(this.energyBar, barX, barsTopY + ROW_HEIGHT * 2, true);
+    this.layoutBar(this.oxygenBar, barX, barsTopY + ROW_HEIGHT * 3, true);
     this.infoText.setPosition(width - MARGIN, barsTopY + ROW_HEIGHT * 4 + 2);
 
     // Power-ups: centrados en el margen inferior.
