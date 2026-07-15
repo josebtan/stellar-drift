@@ -2,12 +2,12 @@ import Phaser from "phaser";
 import type { LightBody } from "../physics/GravitySystem";
 
 const THRUST_ACCEL = 260; // px/s^2
-const TURN_SPEED = 6; // rad/s — qué tan rápido gira para encarar el cursor/joystick
+const TURN_SPEED = 10; // rad/s — qué tan rápido gira para encarar el cursor/joystick
 const MAX_SPEED = 600;
 const MAX_HULL = 100;
 /** Segundos de invulnerabilidad tras recibir daño o respawnear, para no
  * recibir varios golpes seguidos por seguir superpuesto con lo que chocó. */
-const INVULNERABILITY_SECONDS = 1.5;
+const INVULNERABILITY_SECONDS = 2;
 /** Alto deseado de la nave en pantalla (unidades de mundo) */
 const SHIP_DISPLAY_HEIGHT = 46;
 /** El efecto de escudo se ve mejor un poco más grande que la nave */
