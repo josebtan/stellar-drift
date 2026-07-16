@@ -14,12 +14,13 @@ interface LayerConfig {
 }
 
 const LAYERS: LayerConfig[] = [
-  // Capa lejana: puntos chicos y tenues, apenas se mueven (sensación de muy lejos)
-  { key: "starfield-far", tileSize: 640, starCount: 90, minRadius: 0.4, maxRadius: 1.0, minAlpha: 0.15, maxAlpha: 0.45, parallaxFactor: 0.04, depth: -30 },
+  // Capa lejana: la más poblada (estrellas muy chicas y tenues, se notan
+  // como textura de fondo más que como puntos individuales)
+  { key: "starfield-far", tileSize: 640, starCount: 55, minRadius: 0.4, maxRadius: 1.0, minAlpha: 0.15, maxAlpha: 0.45, parallaxFactor: 0.04, depth: -30 },
   // Capa media
-  { key: "starfield-mid", tileSize: 560, starCount: 110, minRadius: 0.6, maxRadius: 1.4, minAlpha: 0.3, maxAlpha: 0.8, parallaxFactor: 0.1, depth: -20 },
-  // Capa cercana: puntos más grandes y brillantes, se mueven más (da profundidad)
-  { key: "starfield-near", tileSize: 480, starCount: 70, minRadius: 1.0, maxRadius: 2.0, minAlpha: 0.5, maxAlpha: 1, parallaxFactor: 0.2, depth: -10 },
+  { key: "starfield-mid", tileSize: 560, starCount: 32, minRadius: 0.6, maxRadius: 1.4, minAlpha: 0.3, maxAlpha: 0.8, parallaxFactor: 0.1, depth: -20 },
+  // Capa cercana: la menos poblada, pero puntos más grandes y brillantes
+  { key: "starfield-near", tileSize: 480, starCount: 16, minRadius: 1.0, maxRadius: 2.0, minAlpha: 0.5, maxAlpha: 1, parallaxFactor: 0.2, depth: -10 },
 ];
 
 /**
