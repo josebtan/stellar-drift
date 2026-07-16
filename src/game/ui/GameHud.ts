@@ -11,7 +11,10 @@ import {
   BAR_HOLE_HEIGHT,
 } from "../assetConstants";
 
-const BAR_DISPLAY_WIDTH = 300;
+const INVENTORY_PANEL_WIDTH = 230;
+const INVENTORY_PANEL_HEIGHT = 213;
+
+const BAR_DISPLAY_WIDTH = INVENTORY_PANEL_WIDTH;
 const BAR_SCALE = BAR_DISPLAY_WIDTH / BAR_IMAGE_WIDTH;
 const BAR_DISPLAY_HEIGHT = BAR_IMAGE_HEIGHT * BAR_SCALE;
 const ROW_HEIGHT = BAR_DISPLAY_HEIGHT + 6;
@@ -45,14 +48,12 @@ interface BarRow {
   holeWidthPx: number;
 }
 
-const INVENTORY_PANEL_WIDTH = 230;
-const INVENTORY_PANEL_HEIGHT = 213;
 // Centros de cada slot medidos sobre la imagen original (575x533), fila
 // superior (las otras 2 filas quedan libres para futuros ítems/power-ups).
 const INVENTORY_SLOT_CENTERS = [
-  { x: 108.5, y: 124 },
-  { x: 229, y: 124 },
-  { x: 348.5, y: 124 },
+  { x: 108.5, y: 138 },
+  { x: 229, y: 138 },
+  { x: 348.5, y: 138 },
 ];
 const INVENTORY_IMAGE_SIZE = { w: 575, h: 533 };
 
@@ -137,11 +138,13 @@ export class GameHud {
     const pctText = this.scene.add
       .text(0, 0, "100%", {
         fontFamily: "Arial, sans-serif",
-        fontSize: "13px",
+        fontSize: "11px",
         fontStyle: "bold",
-        color: Phaser.Display.Color.IntegerToColor(color).rgba,
+        color: "#ffffff",
+        stroke: "#000000",
+        strokeThickness: 3,
       })
-      .setOrigin(0, 0.5)
+      .setOrigin(1, 0.5)
       .setScrollFactor(0)
       .setDepth(103);
     uiLayer.add(pctText);
@@ -162,8 +165,9 @@ export class GameHud {
 
     // Título: en la franja oscura arriba del agujero, después del ícono.
     bar.label.setPosition(x + BAR_HOLE_X * BAR_SCALE, y + 11);
-    // Porcentaje: dentro del sprite, a la derecha del agujero.
-    bar.pctText.setPosition(holeX + bar.holeWidthPx + 6, holeY);
+    // Porcentaje: DENTRO del hueco, pegado a su borde derecho (nunca se
+    // sale del sprite sin importar el ancho de la barra).
+    bar.pctText.setPosition(holeX + bar.holeWidthPx - 4, holeY);
   }
 
   private setBarValue(bar: BarRow, current: number, max: number) {
@@ -186,7 +190,7 @@ export class GameHud {
     types.forEach((type) => {
       const icon = this.scene.add
         .image(0, 0, ORE_ICON_KEYS[type])
-        .setDisplaySize(34, 34)
+        .setDisplaySize(28, 28)
         .setScrollFactor(0)
         .setDepth(101)
         .setVisible(false); // el inventario arranca vacío hasta recolectar algo
@@ -278,7 +282,7 @@ export class GameHud {
       const cy = invY + slot.y * sy;
       this.inventoryIcons[type]?.setPosition(cx, cy);
       // Cantidad en la esquina inferior derecha del ícono.
-      this.inventoryTexts[type]?.setPosition(cx + 17, cy + 17);
+      this.inventoryTexts[type]?.setPosition(cx + 14, cy + 14);
     });
 
     // El contador de carga va JUSTO ARRIBA del panel (no se superpone con
