@@ -138,13 +138,11 @@ export class GameHud {
     const pctText = this.scene.add
       .text(0, 0, "100%", {
         fontFamily: "Arial, sans-serif",
-        fontSize: "11px",
+        fontSize: "13px",
         fontStyle: "bold",
-        color: "#ffffff",
-        stroke: "#000000",
-        strokeThickness: 3,
+        color: Phaser.Display.Color.IntegerToColor(color).rgba,
       })
-      .setOrigin(1, 0.5)
+      .setOrigin(1, 0)
       .setScrollFactor(0)
       .setDepth(103);
     uiLayer.add(pctText);
@@ -163,11 +161,12 @@ export class GameHud {
     bar.fill.width = bar.holeWidthPx * currentFraction;
     bar.frame?.setPosition(x, y);
 
-    // Título: en la franja oscura arriba del agujero, después del ícono.
-    bar.label.setPosition(x + BAR_HOLE_X * BAR_SCALE, y + 11);
-    // Porcentaje: DENTRO del hueco, pegado a su borde derecho (nunca se
-    // sale del sprite sin importar el ancho de la barra).
-    bar.pctText.setPosition(holeX + bar.holeWidthPx - 4, holeY);
+    // Título: en la franja oscura arriba del agujero, después del ícono
+    // (posición original, antes de bajarlo de más).
+    bar.label.setPosition(x + BAR_HOLE_X * BAR_SCALE, y + 6);
+    // Porcentaje: misma fila que el título, pero pegado al borde derecho
+    // del sprite (no encima del relleno).
+    bar.pctText.setPosition(x + BAR_DISPLAY_WIDTH - 8, y + 6);
   }
 
   private setBarValue(bar: BarRow, current: number, max: number) {
