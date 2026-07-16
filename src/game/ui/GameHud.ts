@@ -138,7 +138,7 @@ export class GameHud {
     const pctText = this.scene.add
       .text(0, 0, "100%", {
         fontFamily: "Arial, sans-serif",
-        fontSize: "13px",
+        fontSize: "9px",
         fontStyle: "bold",
         color: Phaser.Display.Color.IntegerToColor(color).rgba,
       })
