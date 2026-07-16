@@ -47,7 +47,6 @@ export class ParallaxBackground {
       const tile = scene.add
         .tileSprite(0, 0, 100, 100, layer.key)
         .setOrigin(0.5, 0.5)
-        .setScrollFactor(0)
         .setDepth(layer.depth)
         .setData("parallaxFactor", layer.parallaxFactor);
       worldLayer.add(tile);

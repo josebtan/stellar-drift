@@ -50,9 +50,9 @@ const INVENTORY_PANEL_HEIGHT = 213;
 // Centros de cada slot medidos sobre la imagen original (575x533), fila
 // superior (las otras 2 filas quedan libres para futuros ítems/power-ups).
 const INVENTORY_SLOT_CENTERS = [
-  { x: 108.5, y: 115 },
-  { x: 229, y: 115 },
-  { x: 348.5, y: 115 },
+  { x: 108.5, y: 124 },
+  { x: 229, y: 124 },
+  { x: 348.5, y: 124 },
 ];
 const INVENTORY_IMAGE_SIZE = { w: 575, h: 533 };
 
@@ -137,7 +137,7 @@ export class GameHud {
     const pctText = this.scene.add
       .text(0, 0, "100%", {
         fontFamily: "Arial, sans-serif",
-        fontSize: "16px",
+        fontSize: "13px",
         fontStyle: "bold",
         color: Phaser.Display.Color.IntegerToColor(color).rgba,
       })
@@ -161,7 +161,7 @@ export class GameHud {
     bar.frame?.setPosition(x, y);
 
     // Título: en la franja oscura arriba del agujero, después del ícono.
-    bar.label.setPosition(x + BAR_HOLE_X * BAR_SCALE, y + 6);
+    bar.label.setPosition(x + BAR_HOLE_X * BAR_SCALE, y + 11);
     // Porcentaje: dentro del sprite, a la derecha del agujero.
     bar.pctText.setPosition(holeX + bar.holeWidthPx + 6, holeY);
   }
@@ -188,7 +188,8 @@ export class GameHud {
         .image(0, 0, ORE_ICON_KEYS[type])
         .setDisplaySize(34, 34)
         .setScrollFactor(0)
-        .setDepth(101);
+        .setDepth(101)
+        .setVisible(false); // el inventario arranca vacío hasta recolectar algo
       uiLayer.add(icon);
       this.inventoryIcons[type] = icon;
 
@@ -203,7 +204,8 @@ export class GameHud {
         })
         .setOrigin(1, 1)
         .setScrollFactor(0)
-        .setDepth(102);
+        .setDepth(102)
+        .setVisible(false);
       uiLayer.add(text);
       this.inventoryTexts[type] = text;
     });
@@ -321,7 +323,11 @@ export class GameHud {
 
     const res = inventory.getAll();
     (Object.keys(res) as ResourceType[]).forEach((type) => {
-      this.inventoryTexts[type]?.setText(res[type].toFixed(0));
+      const amount = res[type];
+      const has = amount > 0;
+      this.inventoryIcons[type]?.setVisible(has);
+      this.inventoryTexts[type]?.setVisible(has);
+      if (has) this.inventoryTexts[type]?.setText(amount.toFixed(0));
     });
 
     this.cargoWarningText.setText(

@@ -18,7 +18,9 @@ const MIN_ZOOM = 0.45;
 const MAX_ZOOM = 2.2;
 /** Combustible por segundo mientras la nave se impulsa; con el tanque base
  * (100) da ~14s de empuje continuo antes de quedarse sin combustible. */
-const FUEL_CONSUMPTION_PER_SEC = 7;
+/** Combustible por segundo mientras la nave se impulsa; con el tanque base
+ * (100) da ~40s de empuje continuo antes de quedarse sin combustible. */
+const FUEL_CONSUMPTION_PER_SEC = 2.5;
 
 export class MainScene extends Phaser.Scene {
   private gravity = new GravitySystem();
