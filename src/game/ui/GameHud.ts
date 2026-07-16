@@ -164,9 +164,9 @@ export class GameHud {
     // Título: en la franja oscura arriba del agujero, después del ícono
     // (posición original, antes de bajarlo de más).
     bar.label.setPosition(x + BAR_HOLE_X * BAR_SCALE, y + 6);
-    // Porcentaje: misma fila que el título, pero pegado al borde derecho
-    // del sprite (no encima del relleno).
-    bar.pctText.setPosition(x + BAR_DISPLAY_WIDTH - 8, y + 6);
+    // Porcentaje: misma fila que el título, alineado con el final de la
+    // barra (el borde derecho del hueco de relleno), no con el borde del sprite.
+    bar.pctText.setPosition(holeX + bar.holeWidthPx, y + 6);
   }
 
   private setBarValue(bar: BarRow, current: number, max: number) {
