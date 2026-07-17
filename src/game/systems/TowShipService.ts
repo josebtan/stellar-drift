@@ -115,6 +115,10 @@ export class TowShipService {
         break;
     }
 
+    // updateLeaving puede haber destruido la nave en este mismo frame
+    // (al salir de la vista) — si es así, no hay nada más que reposicionar.
+    if (!this.towShip) return;
+
     // Posición mundial = SIEMPRE nave.posición + offset relativo. Esto es
     // lo que hace que la grúa nunca se "pierda": hereda la deriva de la
     // nave automáticamente, cualquiera sea su velocidad.
