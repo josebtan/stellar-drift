@@ -11,6 +11,7 @@ import inventoryPanel from "../../assets/ui/hud/inventory-panel.png";
 import powerupShield from "../../assets/ui/hud/powerup-shield.png";
 import powerupSpeed from "../../assets/ui/hud/powerup-speed.png";
 import powerupWeapon from "../../assets/ui/hud/powerup-weapon.png";
+import emergencyCall from "../../assets/ui/hud/emergency-call.png";
 import shieldBurst from "../../assets/ui/effects/shield-burst.png";
 import oreIron from "../../assets/resources/ore-iron.png";
 import oreIce from "../../assets/resources/ore-ice.png";
@@ -68,6 +69,7 @@ export class BootScene extends Phaser.Scene {
     this.load.image("hud-powerup-shield", powerupShield);
     this.load.image("hud-powerup-speed", powerupSpeed);
     this.load.image("hud-powerup-weapon", powerupWeapon);
+    this.load.image("hud-emergency-call", emergencyCall);
     this.load.image("ore-iron", oreIron);
     this.load.image("ore-ice", oreIce);
     this.load.image("ore-rareMineral", oreRare);

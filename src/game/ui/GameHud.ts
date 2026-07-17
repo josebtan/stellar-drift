@@ -9,6 +9,12 @@ import {
   BAR_HOLE_Y,
   BAR_HOLE_WIDTH,
   BAR_HOLE_HEIGHT,
+  EMERGENCY_IMAGE_WIDTH,
+  EMERGENCY_IMAGE_HEIGHT,
+  EMERGENCY_LIGHT_RADIUS,
+  EMERGENCY_LIGHT_CENTERS,
+  EMERGENCY_TEXT_CENTER,
+  EMERGENCY_TEXT_MAX_WIDTH,
 } from "../assetConstants";
 
 const INVENTORY_PANEL_WIDTH = 230;
@@ -19,6 +25,12 @@ const BAR_SCALE = BAR_DISPLAY_WIDTH / BAR_IMAGE_WIDTH;
 const BAR_DISPLAY_HEIGHT = BAR_IMAGE_HEIGHT * BAR_SCALE;
 const ROW_HEIGHT = BAR_DISPLAY_HEIGHT + 6;
 const MARGIN = 16;
+// El botón de emergencia se muestra a la izquierda de la barra de
+// combustible, con la misma altura que una fila de barra.
+const EMERGENCY_DISPLAY_HEIGHT = ROW_HEIGHT - 2;
+const EMERGENCY_DISPLAY_WIDTH = EMERGENCY_DISPLAY_HEIGHT * (EMERGENCY_IMAGE_WIDTH / EMERGENCY_IMAGE_HEIGHT);
+const EMERGENCY_SCALE = EMERGENCY_DISPLAY_WIDTH / EMERGENCY_IMAGE_WIDTH;
+const EMERGENCY_GAP = 10;
 // El relleno se dibuja un poco más grande que el agujero medido, para que
 // cualquier desajuste de subpíxel quede escondido debajo del marco (que se
 // dibuja encima) en vez de dejar un borde sin cubrir.
@@ -77,6 +89,12 @@ export class GameHud {
 
   private powerupIcons: { key: string; image: Phaser.GameObjects.Image; ring: Phaser.GameObjects.Arc }[] = [];
 
+  private emergencyIcon!: Phaser.GameObjects.Image;
+  private emergencyText!: Phaser.GameObjects.Text;
+  private emergencyLights: Phaser.GameObjects.Arc[] = [];
+  private emergencyActive = false;
+  private emergencyBlinkTween: Phaser.Tweens.Tween | null = null;
+
   constructor(scene: Phaser.Scene, uiLayer: Phaser.GameObjects.Layer) {
     this.scene = scene;
 
@@ -93,6 +111,7 @@ export class GameHud {
 
     this.createInventoryPanel(uiLayer);
     this.createPowerupsPanel(uiLayer);
+    this.createEmergencyButton(uiLayer);
 
     scene.scale.on("resize", () => this.reposition());
     this.reposition();
@@ -262,6 +281,87 @@ export class GameHud {
     p.ring.setStrokeStyle(2, color);
   }
 
+  // -------------------------------------------------- Botón de emergencia ----
+
+  /** Botón de emergencia: oculto por defecto, aparece parpadeando cuando el
+   * combustible llega a 0. Va a la izquierda de la barra de combustible. */
+  private createEmergencyButton(uiLayer: Phaser.GameObjects.Layer) {
+    this.emergencyIcon = this.scene.add
+      .image(0, 0, "hud-emergency-call")
+      .setDisplaySize(EMERGENCY_DISPLAY_WIDTH, EMERGENCY_DISPLAY_HEIGHT)
+      .setOrigin(0, 0)
+      .setScrollFactor(0)
+      .setDepth(104)
+      .setVisible(false);
+    uiLayer.add(this.emergencyIcon);
+
+    this.emergencyText = this.scene.add
+      .text(0, 0, "Emergencia", {
+        fontFamily: "Arial, sans-serif",
+        fontSize: "8px",
+        fontStyle: "bold",
+        color: "#ffd9a0",
+        align: "center",
+        wordWrap: { width: EMERGENCY_TEXT_MAX_WIDTH * EMERGENCY_SCALE },
+      })
+      .setOrigin(0.5, 0.5)
+      .setScrollFactor(0)
+      .setDepth(105)
+      .setVisible(false);
+    uiLayer.add(this.emergencyText);
+
+    // 8 luces de advertencia: huecos con alpha=0 reales en el sprite,
+    // repartidos por el marco. Parpadean en rojo cuando está activo.
+    this.emergencyLights = EMERGENCY_LIGHT_CENTERS.map(() => {
+      const light = this.scene.add
+        .circle(0, 0, EMERGENCY_LIGHT_RADIUS * EMERGENCY_SCALE, 0xff3b30, 1)
+        .setScrollFactor(0)
+        .setDepth(105)
+        .setVisible(false);
+      uiLayer.add(light);
+      return light;
+    });
+  }
+
+  private layoutEmergencyButton(x: number, y: number) {
+    this.emergencyIcon.setPosition(x, y);
+    this.emergencyText.setPosition(
+      x + EMERGENCY_TEXT_CENTER.x * EMERGENCY_SCALE,
+      y + EMERGENCY_TEXT_CENTER.y * EMERGENCY_SCALE
+    );
+    this.emergencyLights.forEach((light, i) => {
+      const c = EMERGENCY_LIGHT_CENTERS[i];
+      light.setPosition(x + c.x * EMERGENCY_SCALE, y + c.y * EMERGENCY_SCALE);
+    });
+  }
+
+  /** Muestra/oculta el botón y arranca/detiene el parpadeo de las luces
+   * solo en el flanco de cambio (no en cada frame). */
+  private setEmergencyActive(active: boolean) {
+    if (active === this.emergencyActive) return;
+    this.emergencyActive = active;
+
+    this.emergencyIcon.setVisible(active);
+    this.emergencyText.setVisible(active);
+    this.emergencyLights.forEach((l) => l.setVisible(active));
+
+    if (active) {
+      this.emergencyBlinkTween?.stop();
+      this.emergencyLights.forEach((l) => l.setAlpha(1));
+      this.emergencyBlinkTween = this.scene.tweens.add({
+        targets: this.emergencyLights,
+        alpha: { from: 1, to: 0.15 },
+        duration: 450,
+        yoyo: true,
+        repeat: -1,
+        ease: "Sine.easeInOut",
+      });
+    } else {
+      this.emergencyBlinkTween?.stop();
+      this.emergencyBlinkTween = null;
+    }
+  }
+
   // ------------------------------------------------------------- Layout ----
 
   private reposition() {
@@ -301,6 +401,14 @@ export class GameHud {
     this.layoutBar(this.oxygenBar, barX, barsTopY + ROW_HEIGHT * 2);
     this.infoText.setPosition(width - MARGIN, barsTopY + ROW_HEIGHT * 3 + 2);
 
+    // Botón de emergencia: a la izquierda de la barra de combustible,
+    // centrado verticalmente con ella.
+    const fuelCenterY = barsTopY + BAR_DISPLAY_HEIGHT / 2;
+    this.layoutEmergencyButton(
+      barX - EMERGENCY_GAP - EMERGENCY_DISPLAY_WIDTH,
+      fuelCenterY - EMERGENCY_DISPLAY_HEIGHT / 2
+    );
+
     // Power-ups: centrados en el margen inferior.
     const puY = height - 60;
     const puCenterX = width / 2;
@@ -319,6 +427,7 @@ export class GameHud {
     this.setBarValue(this.fuelBar, inventory.fuel, inventory.fuelCapacity);
     this.setBarValue(this.energyBar, inventory.energy, inventory.energyCapacity);
     this.setBarValue(this.oxygenBar, inventory.oxygen, inventory.oxygenCapacity);
+    this.setEmergencyActive(inventory.fuel <= 0);
 
     this.infoText.setText(
       `Casco: ${ship.hull.toFixed(0)}%   Créditos: ${inventory.credits.toFixed(0)}   Vel: ${extra.speed}   Zoom: ${extra.zoom.toFixed(2)}x   Sector: ${extra.sectorX},${extra.sectorY}`

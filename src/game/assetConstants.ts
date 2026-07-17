@@ -29,3 +29,26 @@ export const BAR_HOLE_HEIGHT = 18;
 
 export const SHIELD_BURST_FRAME_SIZE = 100;
 export const SHIELD_BURST_FRAME_COUNT = 8;
+
+/**
+ * Geometría del sprite de botón de emergencia (aviso de combustible en 0).
+ * Medida sobre el PNG original (785x705). Las 8 luces son huecos con
+ * alpha=0 real repartidos por el marco; el panel de texto es el hueco
+ * rectangular oscuro (opaco, no transparente) en la parte inferior donde
+ * va superpuesto el texto "Emergencia".
+ */
+export const EMERGENCY_IMAGE_WIDTH = 785;
+export const EMERGENCY_IMAGE_HEIGHT = 705;
+export const EMERGENCY_LIGHT_RADIUS = 7;
+export const EMERGENCY_LIGHT_CENTERS = [
+  { x: 297, y: 48 },
+  { x: 488, y: 48 },
+  { x: 393, y: 77 },
+  { x: 87, y: 208 },
+  { x: 697, y: 207 },
+  { x: 105, y: 550 },
+  { x: 675, y: 550 },
+  { x: 393, y: 647 },
+];
+export const EMERGENCY_TEXT_CENTER = { x: 393, y: 558 };
+export const EMERGENCY_TEXT_MAX_WIDTH = 460;
