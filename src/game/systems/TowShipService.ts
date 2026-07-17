@@ -6,7 +6,13 @@ import type { Inventory } from "./Inventory";
 /** Créditos que cobra el servicio de grúa por venir a recargar combustible. */
 export const TOW_SERVICE_COST = 50;
 
-const APPROACH_SPEED = 340; // px/s (unidades de mundo)
+/** Velocidad base de acercamiento; si la nave del jugador va a la deriva
+ * más rápido que esto, se recalcula más arriba (ver updateApproaching) para
+ * que la grúa siempre gane la carrera y la alcance. */
+const APPROACH_SPEED = 340;
+/** Margen por encima de la velocidad actual de la nave a la que persigue,
+ * para garantizar que siempre la alcance sin importar qué tan rápido derive. */
+const APPROACH_CATCHUP_MARGIN = 150;
 const LEAVE_SPEED = 420; // se va un poco más rápido de lo que vino
 /** Distancia a la nave del jugador a la que la grúa se detiene a recargar. */
 const PARK_DISTANCE = 75;
@@ -109,10 +115,22 @@ export class TowShipService {
 
   private updateApproaching(dt: number) {
     const ts = this.towShip!;
-    ts.x += this.travelDir.x * APPROACH_SPEED * dt;
-    ts.y += this.travelDir.y * APPROACH_SPEED * dt;
+    // Recalcula la dirección hacia la nave del jugador cada frame (en vez
+    // de usar la dirección fija de cuando se contrató), así la persigue
+    // aunque esté a la deriva por la gravedad sin poder frenar.
+    const dx = this.ship.x - ts.x;
+    const dy = this.ship.y - ts.y;
+    const dist = Math.max(1, Math.hypot(dx, dy));
+    this.travelDir = { x: dx / dist, y: dy / dist };
+    ts.faceDirection(this.travelDir.x, this.travelDir.y);
 
-    const dist = Phaser.Math.Distance.Between(ts.x, ts.y, this.ship.x, this.ship.y);
+    // Nunca más lenta que la nave a la que persigue + margen: así la
+    // alcanza siempre, sin importar qué tan rápido esté yendo a la deriva.
+    const shipSpeed = Math.hypot(this.ship.vx, this.ship.vy);
+    const speed = Math.max(APPROACH_SPEED, shipSpeed + APPROACH_CATCHUP_MARGIN);
+    ts.x += this.travelDir.x * speed * dt;
+    ts.y += this.travelDir.y * speed * dt;
+
     if (dist <= PARK_DISTANCE) {
       this.parkOffset = { x: ts.x - this.ship.x, y: ts.y - this.ship.y };
       this.state = "refueling";
