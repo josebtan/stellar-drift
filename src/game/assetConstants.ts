@@ -37,18 +37,18 @@ export const SHIELD_BURST_FRAME_COUNT = 8;
  * rectangular oscuro (opaco, no transparente) en la parte inferior donde
  * va superpuesto el texto "Emergencia".
  */
-export const EMERGENCY_IMAGE_WIDTH = 785;
-export const EMERGENCY_IMAGE_HEIGHT = 705;
-export const EMERGENCY_LIGHT_RADIUS = 7;
+export const EMERGENCY_IMAGE_WIDTH = 290;
+export const EMERGENCY_IMAGE_HEIGHT = 260;
+export const EMERGENCY_LIGHT_RADIUS = 2.6;
 export const EMERGENCY_LIGHT_CENTERS = [
-  { x: 297, y: 48 },
-  { x: 488, y: 48 },
-  { x: 393, y: 77 },
-  { x: 87, y: 208 },
-  { x: 697, y: 207 },
-  { x: 105, y: 550 },
-  { x: 675, y: 550 },
-  { x: 393, y: 647 },
+  { x: 109.6, y: 17.7 },
+  { x: 180.0, y: 17.7 },
+  { x: 144.9, y: 28.4 },
+  { x: 32.1, y: 76.7 },
+  { x: 257.1, y: 76.3 },
+  { x: 38.7, y: 202.8 },
+  { x: 248.9, y: 202.8 },
+  { x: 144.9, y: 238.6 },
 ];
-export const EMERGENCY_TEXT_CENTER = { x: 393, y: 558 };
-export const EMERGENCY_TEXT_MAX_WIDTH = 460;
+export const EMERGENCY_TEXT_CENTER = { x: 144.9, y: 205.8 };
+export const EMERGENCY_TEXT_MAX_WIDTH = 169.6;
