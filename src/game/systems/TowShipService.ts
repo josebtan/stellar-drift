@@ -12,7 +12,7 @@ export const TOW_SERVICE_COST = 50;
 const APPROACH_SPEED = 340;
 /** Margen por encima de la velocidad actual de la nave a la que persigue,
  * para garantizar que siempre la alcance sin importar qué tan rápido derive. */
-const APPROACH_CATCHUP_MARGIN = 150;
+const APPROACH_CATCHUP_MARGIN = 250;
 const LEAVE_SPEED = 420; // se va un poco más rápido de lo que vino
 /** Distancia a la nave del jugador a la que la grúa se detiene a recargar. */
 const PARK_DISTANCE = 75;
@@ -115,26 +115,65 @@ export class TowShipService {
 
   private updateApproaching(dt: number) {
     const ts = this.towShip!;
-    // Recalcula la dirección hacia la nave del jugador cada frame (en vez
-    // de usar la dirección fija de cuando se contrató), así la persigue
-    // aunque esté a la deriva por la gravedad sin poder frenar.
-    const dx = this.ship.x - ts.x;
-    const dy = this.ship.y - ts.y;
+
+    // Nunca más lenta que la nave a la que persigue + margen: garantiza que
+    // el punto de intercepción exista (solo hace falta ser más rápida que
+    // el objetivo, sea cual sea su velocidad).
+    const shipSpeed = Math.hypot(this.ship.vx, this.ship.vy);
+    const speed = Math.max(APPROACH_SPEED, shipSpeed + APPROACH_CATCHUP_MARGIN);
+
+    // En vez de perseguir la posición ACTUAL (persecución pura, que traza
+    // una curva larga y puede no alcanzar a un blanco en línea recta), se
+    // apunta al punto donde va a estar la nave si sigue con su velocidad
+    // actual — así el camino es directo y sí la alcanza.
+    const target = this.computeInterceptPoint(ts.x, ts.y, speed);
+    const dx = target.x - ts.x;
+    const dy = target.y - ts.y;
     const dist = Math.max(1, Math.hypot(dx, dy));
     this.travelDir = { x: dx / dist, y: dy / dist };
     ts.faceDirection(this.travelDir.x, this.travelDir.y);
 
-    // Nunca más lenta que la nave a la que persigue + margen: así la
-    // alcanza siempre, sin importar qué tan rápido esté yendo a la deriva.
-    const shipSpeed = Math.hypot(this.ship.vx, this.ship.vy);
-    const speed = Math.max(APPROACH_SPEED, shipSpeed + APPROACH_CATCHUP_MARGIN);
     ts.x += this.travelDir.x * speed * dt;
     ts.y += this.travelDir.y * speed * dt;
 
-    if (dist <= PARK_DISTANCE) {
+    const distToShip = Phaser.Math.Distance.Between(ts.x, ts.y, this.ship.x, this.ship.y);
+    if (distToShip <= PARK_DISTANCE) {
       this.parkOffset = { x: ts.x - this.ship.x, y: ts.y - this.ship.y };
       this.state = "refueling";
     }
+  }
+
+  /** Punto donde va a estar la nave del jugador si sigue en línea recta con
+   * su velocidad actual, calculado para que la grúa (yendo a `speed`) la
+   * intercepte lo antes posible. Se recalcula cada frame, así se corrige
+   * solo si la gravedad cambia el rumbo de la nave mientras se acerca. */
+  private computeInterceptPoint(fromX: number, fromY: number, speed: number) {
+    const dx = this.ship.x - fromX;
+    const dy = this.ship.y - fromY;
+    const vx = this.ship.vx;
+    const vy = this.ship.vy;
+
+    const a = vx * vx + vy * vy - speed * speed;
+    const b = 2 * (vx * dx + vy * dy);
+    const c = dx * dx + dy * dy;
+
+    let t = 0;
+    if (Math.abs(a) < 1e-6) {
+      if (Math.abs(b) > 1e-6) t = -c / b;
+    } else {
+      const disc = b * b - 4 * a * c;
+      if (disc >= 0) {
+        const sqrtDisc = Math.sqrt(disc);
+        const t1 = (-b + sqrtDisc) / (2 * a);
+        const t2 = (-b - sqrtDisc) / (2 * a);
+        // La menor raíz positiva es el primer instante de intercepción.
+        const candidates = [t1, t2].filter((v) => v > 0);
+        t = candidates.length > 0 ? Math.min(...candidates) : 0;
+      }
+    }
+    t = Math.max(0, t);
+
+    return { x: this.ship.x + vx * t, y: this.ship.y + vy * t };
   }
 
   private updateRefueling(dt: number) {
