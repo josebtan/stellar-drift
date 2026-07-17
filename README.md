@@ -33,6 +33,9 @@ fase posterior sobre una capa de red desacoplada del core del juego.
   tiempo y se repone con hielo.
 - Login/registro con Firebase Auth + estado de jugador persistido en
   Firestore (posición, recursos, soporte vital, créditos).
+- Botón de emergencia (aparece con combustible en 0) que contrata una
+  nave de auxilio a cambio de créditos: llega desde fuera de pantalla,
+  se estaciona junto al jugador, recarga el tanque rápido y se retira.
 
 ### Pendiente / roadmap
 - Puntos de venta / comercio con precios dinámicos por estación.

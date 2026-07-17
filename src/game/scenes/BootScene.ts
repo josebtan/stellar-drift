@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import sunSpritesheet from "../../assets/celestial/sun-spritesheet.png";
 import asteroidSpritesheet from "../../assets/celestial/asteroid/asteroid-spritesheet.png";
 import minerShip from "../../assets/ship/miner-ship.png";
+import towShip from "../../assets/ship/tow-ship.png";
 import tradeStation from "../../assets/station/orion-trade-station.png";
 import minimapFrame from "../../assets/ui/minimap-frame.png";
 import fuelBar from "../../assets/ui/hud/fuel-bar.png";
@@ -60,6 +61,7 @@ export class BootScene extends Phaser.Scene {
     });
 
     this.load.image("ship-miner", minerShip);
+    this.load.image("tow-ship", towShip);
     this.load.image("station-orion", tradeStation);
     this.load.image("minimap-frame", minimapFrame);
     this.load.image("hud-fuel-bar", fuelBar);

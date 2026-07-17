@@ -9,6 +9,7 @@ import { InputController } from "../systems/InputController";
 import { Minimap } from "../systems/Minimap";
 import { ParallaxBackground } from "../systems/ParallaxBackground";
 import { GameHud } from "../ui/GameHud";
+import { TowShipService } from "../systems/TowShipService";
 import { worldToSector } from "../procgen/universeGenerator";
 
 const SHIP_SPAWN_X = 400;
@@ -31,6 +32,7 @@ export class MainScene extends Phaser.Scene {
   private ship!: PlayerShip;
   private inventory = new Inventory();
   private gameHud!: GameHud;
+  private towService!: TowShipService;
   private parallax!: ParallaxBackground;
   private gameOverGroup!: Phaser.GameObjects.Container;
   private isGameOver = false;
@@ -76,6 +78,7 @@ export class MainScene extends Phaser.Scene {
 
     this.input_ = new InputController(this, this.uiLayer);
     this.minimap = new Minimap(this, this.uiLayer);
+    this.towService = new TowShipService(this, this.worldLayer, this.ship, this.inventory);
 
     this.createHud();
     this.createGameOverOverlay();
@@ -101,6 +104,7 @@ export class MainScene extends Phaser.Scene {
 
   private createHud() {
     this.gameHud = new GameHud(this, this.uiLayer);
+    this.gameHud.onEmergencyClick = () => this.towService.hire();
 
     const hintText = this.input_?.isTouch
       ? "Joystick izq: mover — Joystick der: apuntar y disparar — Pellizcar: zoom"
@@ -226,6 +230,8 @@ export class MainScene extends Phaser.Scene {
     this.parallax.update();
     this.minimap.update(this.ship, this.universe.celestialBodies, this.universe.asteroids, this.universe.stations);
     this.input_.redrawTouchControls();
+    this.towService.update(dt);
+    this.gameHud.setEmergencyBusy(this.towService.isActive);
 
     const { sx, sy } = worldToSector(this.ship.x, this.ship.y);
     this.gameHud.update(this.ship, this.inventory, {

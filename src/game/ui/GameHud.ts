@@ -94,6 +94,8 @@ export class GameHud {
   private emergencyLights: Phaser.GameObjects.Arc[] = [];
   private emergencyActive = false;
   private emergencyBlinkTween: Phaser.Tweens.Tween | null = null;
+  /** Asignado desde afuera (MainScene): qué hacer al tocar el botón. */
+  onEmergencyClick: (() => void) | null = null;
 
   constructor(scene: Phaser.Scene, uiLayer: Phaser.GameObjects.Layer) {
     this.scene = scene;
@@ -292,7 +294,9 @@ export class GameHud {
       .setOrigin(0, 0)
       .setScrollFactor(0)
       .setDepth(104)
-      .setVisible(false);
+      .setVisible(false)
+      .setInteractive({ useHandCursor: true })
+      .on("pointerdown", () => this.onEmergencyClick?.());
     uiLayer.add(this.emergencyIcon);
 
     this.emergencyText = this.scene.add
@@ -360,6 +364,14 @@ export class GameHud {
       this.emergencyBlinkTween?.stop();
       this.emergencyBlinkTween = null;
     }
+  }
+
+  /** Refleja si ya hay una grúa contratada en camino/trabajando: atenúa el
+   * ícono y deja de responder a clicks hasta que termine el servicio. */
+  setEmergencyBusy(busy: boolean) {
+    this.emergencyIcon.setAlpha(busy ? 0.5 : 1);
+    if (busy) this.emergencyIcon.disableInteractive();
+    else this.emergencyIcon.setInteractive({ useHandCursor: true });
   }
 
   // ------------------------------------------------------------- Layout ----
