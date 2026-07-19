@@ -33,9 +33,10 @@ export class PlayerShip extends Phaser.GameObjects.Sprite implements LightBody {
   private invulnerableSeconds = 0;
   private thrusting = false;
 
-  /** Destello de escudo (spritesheet provisto): se reproduce al recibir
-   * daño o al respawnear, dando feedback visual de "invulnerabilidad
-   * activa" más claro que solo el parpadeo de alpha. */
+  /** Destello de escudo (spritesheet provisto): reservado para cuando se
+   * implemente la mecánica del power-up de escudo (absorbe el golpe sin
+   * perder casco). NO se usa para daño normal — para eso está
+   * playDamageFlash(), más abajo. */
   readonly shieldEffect: Phaser.GameObjects.Sprite;
 
   constructor(scene: Phaser.Scene, x: number, y: number) {
@@ -122,10 +123,23 @@ export class PlayerShip extends Phaser.GameObjects.Sprite implements LightBody {
     }
   }
 
-  private playShieldEffect() {
+  /** Reproduce el destello de escudo — llamar SOLO cuando el power-up de
+   * escudo absorbe un golpe (mecánica todavía no implementada). Público
+   * para que el futuro sistema de power-ups lo dispare desde afuera. */
+  playShieldAbsorb() {
     this.shieldEffect.setPosition(this.x, this.y);
     this.shieldEffect.setVisible(true);
     this.shieldEffect.play("shield-burst-anim");
+  }
+
+  /** Destello rojo breve al recibir daño normal (choque con asteroide,
+   * etc.) — separado del efecto de escudo, que es solo para cuando el
+   * power-up de escudo absorbe el golpe. */
+  private playDamageFlash() {
+    this.setTint(0xff4d4d).setTintMode(Phaser.TintModes.FILL);
+    this.scene.time.delayedCall(120, () => {
+      if (!this.isDestroyed) this.clearTint();
+    });
   }
 
   /** Daño por impacto (ej. choque con asteroide). No aplica si está invulnerable. */
@@ -133,7 +147,7 @@ export class PlayerShip extends Phaser.GameObjects.Sprite implements LightBody {
     if (this.isDestroyed || this.isInvulnerable) return false;
     this.hull = Math.max(0, this.hull - amount);
     this.invulnerableSeconds = INVULNERABILITY_SECONDS;
-    this.playShieldEffect();
+    this.playDamageFlash();
     if (this.hull <= 0) {
       this.destroyShip();
     }
@@ -163,6 +177,8 @@ export class PlayerShip extends Phaser.GameObjects.Sprite implements LightBody {
     this.invulnerableSeconds = INVULNERABILITY_SECONDS;
     this.setVisible(true);
     this.setAlpha(1);
-    this.playShieldEffect();
+    // El parpadeo de alpha (tickInvulnerability) ya indica la
+    // invulnerabilidad post-respawn; el destello de escudo queda
+    // reservado solo para cuando el power-up de escudo absorbe un golpe.
   }
 }

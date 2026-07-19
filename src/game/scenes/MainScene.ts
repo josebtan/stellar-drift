@@ -16,6 +16,7 @@ import { worldToSector } from "../procgen/universeGenerator";
 const SHIP_SPAWN_X = 400;
 const SHIP_SPAWN_Y = 0;
 const FIRE_COOLDOWN = 0.15; // segundos entre disparos
+const ENERGY_COST_PER_SHOT = 3;
 const MIN_ZOOM = 0.45;
 const MAX_ZOOM = 2.2;
 /** Combustible por segundo mientras la nave se impulsa; con el tanque base
@@ -247,6 +248,10 @@ export class MainScene extends Phaser.Scene {
   private handleFiring(dt: number, aimAngle: number | null) {
     this.fireCooldown = Math.max(0, this.fireCooldown - dt);
     if (this.input_.isFiring() && this.fireCooldown <= 0 && aimAngle !== null) {
+      // Sin energía suficiente el arma no dispara (no consume cooldown,
+      // así retoma apenas se regenera un poco).
+      if (!this.inventory.spendEnergy(ENERGY_COST_PER_SHOT)) return;
+
       // Dispara desde la punta de la nave, en la dirección que está encarando
       const spawnDist = 20;
       const x = this.ship.x + Math.cos(this.ship.rotation - Math.PI / 2) * spawnDist;
