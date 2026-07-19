@@ -1,6 +1,7 @@
 import Phaser from "phaser";
+import { getUiScale } from "../uiScale";
 
-const JOYSTICK_RADIUS = 70;
+const BASE_JOYSTICK_RADIUS = 70;
 const JOYSTICK_DEADZONE = 14;
 const ZOOM_WHEEL_SENSITIVITY = 0.001;
 const ZOOM_PINCH_SENSITIVITY = 0.006;
@@ -43,6 +44,12 @@ export class InputController {
   private moveTouchId: number | null = null;
   private moveVector: Vec2 = { x: 0, y: 0 };
   private moveKnobOffset: Vec2 = { x: 0, y: 0 };
+
+  // Radio y zona muerta actuales de los joysticks, escalados según el
+  // tamaño de pantalla (ver repositionAnchors) — así en celular no quedan
+  // gigantes ni se pisan entre sí en pantallas angostas.
+  private joystickRadius = BASE_JOYSTICK_RADIUS;
+  private joystickDeadzone = JOYSTICK_DEADZONE;
 
   // Joystick de apuntado + disparo (táctil): moverlo more allá de la zona
   // muerta apunta la nave hacia esa dirección Y dispara, como en la mayoría
@@ -98,8 +105,12 @@ export class InputController {
 
   private repositionAnchors() {
     const { width, height } = this.scene.scale;
-    this.moveAnchor = { x: 120, y: height - 120 };
-    this.aimAnchor = { x: width - 120, y: height - 120 };
+    const scale = getUiScale(this.scene);
+    this.joystickRadius = BASE_JOYSTICK_RADIUS * scale;
+    this.joystickDeadzone = JOYSTICK_DEADZONE * scale;
+    const inset = 120 * scale;
+    this.moveAnchor = { x: inset, y: height - inset };
+    this.aimAnchor = { x: width - inset, y: height - inset };
   }
 
   // ---------------------------------------------------------------- PC ----
@@ -144,12 +155,12 @@ export class InputController {
     const distMove = Phaser.Math.Distance.Between(p.x, p.y, this.moveAnchor.x, this.moveAnchor.y);
     const distAim = Phaser.Math.Distance.Between(p.x, p.y, this.aimAnchor.x, this.aimAnchor.y);
 
-    if (this.moveTouchId === null && distMove <= JOYSTICK_RADIUS * 1.6) {
+    if (this.moveTouchId === null && distMove <= this.joystickRadius * 1.6) {
       this.moveTouchId = p.id;
       this.onTouchMove(p);
       return;
     }
-    if (this.aimTouchId === null && distAim <= JOYSTICK_RADIUS * 1.6) {
+    if (this.aimTouchId === null && distAim <= this.joystickRadius * 1.6) {
       this.aimTouchId = p.id;
       this.onTouchMove(p);
       return;
@@ -169,10 +180,10 @@ export class InputController {
       const v = this.clampToJoystick(p.x - this.moveAnchor.x, p.y - this.moveAnchor.y);
       this.moveKnobOffset = v;
       const mag = Math.hypot(v.x, v.y);
-      if (mag < JOYSTICK_DEADZONE) {
+      if (mag < this.joystickDeadzone) {
         this.moveVector = { x: 0, y: 0 };
       } else {
-        this.moveVector = { x: v.x / JOYSTICK_RADIUS, y: v.y / JOYSTICK_RADIUS };
+        this.moveVector = { x: v.x / this.joystickRadius, y: v.y / this.joystickRadius };
       }
       return;
     }
@@ -181,7 +192,7 @@ export class InputController {
       const v = this.clampToJoystick(p.x - this.aimAnchor.x, p.y - this.aimAnchor.y);
       this.aimKnobOffset = v;
       const mag = Math.hypot(v.x, v.y);
-      if (mag < JOYSTICK_DEADZONE) {
+      if (mag < this.joystickDeadzone) {
         this.aimFiring = false;
       } else {
         this.aimAngle = Math.atan2(v.y, v.x);
@@ -224,8 +235,8 @@ export class InputController {
 
   private clampToJoystick(dx: number, dy: number): Vec2 {
     const dist = Math.hypot(dx, dy);
-    if (dist <= JOYSTICK_RADIUS) return { x: dx, y: dy };
-    const scale = JOYSTICK_RADIUS / dist;
+    if (dist <= this.joystickRadius) return { x: dx, y: dy };
+    const scale = this.joystickRadius / dist;
     return { x: dx * scale, y: dy * scale };
   }
 
@@ -274,25 +285,25 @@ export class InputController {
 
     g.fillStyle(0x8ce3ff, 0.12);
     g.lineStyle(2, 0x8ce3ff, 0.4);
-    g.fillCircle(this.moveAnchor.x, this.moveAnchor.y, JOYSTICK_RADIUS);
-    g.strokeCircle(this.moveAnchor.x, this.moveAnchor.y, JOYSTICK_RADIUS);
+    g.fillCircle(this.moveAnchor.x, this.moveAnchor.y, this.joystickRadius);
+    g.strokeCircle(this.moveAnchor.x, this.moveAnchor.y, this.joystickRadius);
     g.fillStyle(0x8ce3ff, 0.35);
     g.fillCircle(
       this.moveAnchor.x + this.moveKnobOffset.x,
       this.moveAnchor.y + this.moveKnobOffset.y,
-      26
+      this.joystickRadius * (26 / BASE_JOYSTICK_RADIUS)
     );
 
     const aimColor = this.aimFiring ? 0xff6b6b : 0x8ce3ff;
     g.fillStyle(aimColor, 0.12);
     g.lineStyle(2, aimColor, 0.4);
-    g.fillCircle(this.aimAnchor.x, this.aimAnchor.y, JOYSTICK_RADIUS);
-    g.strokeCircle(this.aimAnchor.x, this.aimAnchor.y, JOYSTICK_RADIUS);
+    g.fillCircle(this.aimAnchor.x, this.aimAnchor.y, this.joystickRadius);
+    g.strokeCircle(this.aimAnchor.x, this.aimAnchor.y, this.joystickRadius);
     g.fillStyle(aimColor, 0.4);
     g.fillCircle(
       this.aimAnchor.x + this.aimKnobOffset.x,
       this.aimAnchor.y + this.aimKnobOffset.y,
-      26
+      this.joystickRadius * (26 / BASE_JOYSTICK_RADIUS)
     );
   }
 }

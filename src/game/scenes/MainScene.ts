@@ -7,6 +7,7 @@ import { checkCollisions } from "../systems/CollisionSystem";
 import { CombatSystem } from "../systems/CombatSystem";
 import { InputController } from "../systems/InputController";
 import { Minimap } from "../systems/Minimap";
+import { FullscreenToggle } from "../systems/FullscreenToggle";
 import { ParallaxBackground } from "../systems/ParallaxBackground";
 import { GameHud } from "../ui/GameHud";
 import { TowShipService } from "../systems/TowShipService";
@@ -78,6 +79,7 @@ export class MainScene extends Phaser.Scene {
 
     this.input_ = new InputController(this, this.uiLayer);
     this.minimap = new Minimap(this, this.uiLayer);
+    new FullscreenToggle(this, this.uiLayer);
     this.towService = new TowShipService(this, this.worldLayer, this.ship, this.inventory);
 
     this.createHud();

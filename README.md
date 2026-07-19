@@ -36,6 +36,11 @@ fase posterior sobre una capa de red desacoplada del core del juego.
 - Botón de emergencia (aparece con combustible en 0) que contrata una
   nave de auxilio a cambio de créditos: llega desde fuera de pantalla,
   se estaciona junto al jugador, recarga el tanque rápido y se retira.
+- Interfaz responsiva: el HUD entero (barras, inventario, minimapa,
+  joysticks táctiles, botón de emergencia) se reescala dinámicamente
+  según el tamaño de pantalla (`uiScale.ts`), y hay un botón para pasar
+  a pantalla completa real (Fullscreen API) — pensado sobre todo para
+  celular.
 
 ### Pendiente / roadmap
 - Puntos de venta / comercio con precios dinámicos por estación.

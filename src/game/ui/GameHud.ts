@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import type { Inventory } from "../systems/Inventory";
 import type { PlayerShip } from "../entities/PlayerShip";
 import type { ResourceType } from "../entities/Asteroid";
+import { getUiScale } from "../uiScale";
 import {
   BAR_IMAGE_WIDTH,
   BAR_IMAGE_HEIGHT,
@@ -17,25 +18,16 @@ import {
   EMERGENCY_TEXT_MAX_WIDTH,
 } from "../assetConstants";
 
-const INVENTORY_PANEL_WIDTH = 230;
-const INVENTORY_PANEL_HEIGHT = 213;
-
-const BAR_DISPLAY_WIDTH = INVENTORY_PANEL_WIDTH;
-const BAR_SCALE = BAR_DISPLAY_WIDTH / BAR_IMAGE_WIDTH;
-const BAR_DISPLAY_HEIGHT = BAR_IMAGE_HEIGHT * BAR_SCALE;
-const ROW_HEIGHT = BAR_DISPLAY_HEIGHT + 6;
-const MARGIN = 16;
-// El botón de emergencia se muestra a la izquierda de la barra de
-// combustible, con la misma altura que una fila de barra.
-const EMERGENCY_DISPLAY_HEIGHT = ROW_HEIGHT - 2;
-const EMERGENCY_DISPLAY_WIDTH = EMERGENCY_DISPLAY_HEIGHT * (EMERGENCY_IMAGE_WIDTH / EMERGENCY_IMAGE_HEIGHT);
-const EMERGENCY_SCALE = EMERGENCY_DISPLAY_WIDTH / EMERGENCY_IMAGE_WIDTH;
-const EMERGENCY_GAP = 10;
-// El relleno se dibuja un poco más grande que el agujero medido, para que
-// cualquier desajuste de subpíxel quede escondido debajo del marco (que se
-// dibuja encima) en vez de dejar un borde sin cubrir.
-const HOLE_PADDING_X = 6;
-const HOLE_PADDING_Y = 4;
+// Todos los tamaños de acá son los de "diseño" (equivalen a uiScale=1,
+// el tamaño que ya tenía el HUD en desktop). reposition() los multiplica
+// por el factor de escala actual antes de aplicarlos, así que en celular
+// (uiScale < 1) todo el HUD se achica proporcionalmente en vez de
+// desbordar o solaparse.
+const BASE_INVENTORY_PANEL_WIDTH = 230;
+const BASE_INVENTORY_PANEL_HEIGHT = 213;
+const BASE_MARGIN = 16;
+const BASE_EMERGENCY_GAP = 10;
+const BASE_ROW_GAP = 6; // separación extra entre filas de barras
 
 const ORE_ICON_KEYS: Record<ResourceType, string> = {
   iron: "ore-iron",
@@ -52,7 +44,7 @@ const POWERUP_STATE_COLORS: Record<PowerupState, number> = {
 };
 
 interface BarRow {
-  frame: Phaser.GameObjects.Image | null;
+  frame: Phaser.GameObjects.Image;
   bg: Phaser.GameObjects.Rectangle;
   fill: Phaser.GameObjects.Rectangle;
   label: Phaser.GameObjects.Text;
@@ -73,6 +65,10 @@ const INVENTORY_IMAGE_SIZE = { w: 575, h: 533 };
  * HUD estilizado, todo alineado a la derecha salvo los power-ups (centrados
  * abajo): minimapa arriba a la derecha (Minimap.ts), barras de estado justo
  * encima del inventario, inventario en la esquina inferior derecha.
+ *
+ * Totalmente responsivo: en cada resize (incluye rotación de pantalla en
+ * celular) reposition() recalcula un factor de escala (ver uiScale.ts) y
+ * re-dimensiona TODOS los elementos, no solo su posición.
  */
 export class GameHud {
   private scene: Phaser.Scene;
@@ -122,25 +118,17 @@ export class GameHud {
   // ---------------------------------------------------------- Stat bars ----
 
   private makeBar(uiLayer: Phaser.GameObjects.Layer, imageKey: string, color: number, label: string): BarRow {
-    const holeW = (BAR_HOLE_WIDTH + HOLE_PADDING_X * 2) * BAR_SCALE;
-    const holeH = (BAR_HOLE_HEIGHT + HOLE_PADDING_Y * 2) * BAR_SCALE;
-
-    // El relleno va DETRÁS del marco (depth menor), y un poco más grande
-    // que el agujero real para no dejar bordes sin cubrir.
-    const bg = this.scene.add.rectangle(0, 0, holeW, holeH, 0x0a0f16, 0.95);
+    // El relleno va DETRÁS del marco (depth menor); el tamaño real se fija
+    // en layoutBar() en cada reposition, acá arrancan en 0.
+    const bg = this.scene.add.rectangle(0, 0, 0, 0, 0x0a0f16, 0.95);
     bg.setOrigin(0, 0.5).setScrollFactor(0).setDepth(100);
     uiLayer.add(bg);
 
-    const fill = this.scene.add.rectangle(0, 0, 0, holeH, color, 1);
+    const fill = this.scene.add.rectangle(0, 0, 0, 0, color, 1);
     fill.setOrigin(0, 0.5).setScrollFactor(0).setDepth(101);
     uiLayer.add(fill);
 
-    const frame = this.scene.add
-      .image(0, 0, imageKey)
-      .setDisplaySize(BAR_DISPLAY_WIDTH, BAR_DISPLAY_HEIGHT)
-      .setOrigin(0, 0)
-      .setScrollFactor(0)
-      .setDepth(102);
+    const frame = this.scene.add.image(0, 0, imageKey).setOrigin(0, 0).setScrollFactor(0).setDepth(102);
     uiLayer.add(frame);
 
     // Título y porcentaje se dibujan ENCIMA del propio sprite (no afuera),
@@ -148,7 +136,6 @@ export class GameHud {
     const label_ = this.scene.add
       .text(0, 0, label, {
         fontFamily: "Arial, sans-serif",
-        fontSize: "13px",
         fontStyle: "bold",
         color: Phaser.Display.Color.IntegerToColor(color).rgba,
       })
@@ -159,7 +146,6 @@ export class GameHud {
     const pctText = this.scene.add
       .text(0, 0, "100%", {
         fontFamily: "Arial, sans-serif",
-        fontSize: "10px",
         fontStyle: "bold",
         color: Phaser.Display.Color.IntegerToColor(color).rgba,
       })
@@ -168,26 +154,37 @@ export class GameHud {
       .setDepth(103);
     uiLayer.add(pctText);
 
-    return { frame, bg, fill, label: label_, pctText, holeWidthPx: holeW };
+    return { frame, bg, fill, label: label_, pctText, holeWidthPx: 0 };
   }
 
-  private layoutBar(bar: BarRow, x: number, y: number) {
-    const holeX = x + BAR_HOLE_X * BAR_SCALE - HOLE_PADDING_X * BAR_SCALE;
-    const holeY = y + BAR_HOLE_Y * BAR_SCALE + (BAR_HOLE_HEIGHT * BAR_SCALE) / 2;
+  /** Redimensiona y reposiciona una barra para el tamaño de fila actual
+   * (displayWidth/displayHeight ya vienen escalados por uiScale). */
+  private layoutBar(bar: BarRow, x: number, y: number, displayWidth: number, displayHeight: number, scale: number) {
+    const barScale = displayWidth / BAR_IMAGE_WIDTH;
+    // El relleno se dibuja un poco más grande que el agujero medido, para
+    // que cualquier desajuste de subpíxel quede escondido debajo del marco
+    // (que se dibuja encima) en vez de dejar un borde sin cubrir.
+    const holePaddingX = 6 * barScale;
+    const holePaddingY = 4 * barScale;
+    const holeW = BAR_HOLE_WIDTH * barScale + holePaddingX * 2;
+    const holeH = BAR_HOLE_HEIGHT * barScale + holePaddingY * 2;
+    const holeX = x + BAR_HOLE_X * barScale - holePaddingX;
+    const holeY = y + BAR_HOLE_Y * barScale + (BAR_HOLE_HEIGHT * barScale) / 2;
 
-    // Mantiene la fracción actual del relleno al reposicionar (ej. resize)
+    // Mantiene la fracción actual del relleno al reposicionar (ej. resize).
     const currentFraction = bar.holeWidthPx > 0 ? bar.fill.width / bar.holeWidthPx : 1;
-    bar.bg.setPosition(holeX, holeY);
-    bar.fill.setPosition(holeX, holeY);
-    bar.fill.width = bar.holeWidthPx * currentFraction;
-    bar.frame?.setPosition(x, y);
+    bar.holeWidthPx = holeW;
+    bar.bg.setPosition(holeX, holeY).setSize(holeW, holeH);
+    bar.fill.setPosition(holeX, holeY).setSize(holeW * currentFraction, holeH);
+    bar.frame.setPosition(x, y).setDisplaySize(displayWidth, displayHeight);
 
-    // Título: en la franja oscura arriba del agujero, después del ícono
-    // (posición original, antes de bajarlo de más).
-    bar.label.setPosition(x + BAR_HOLE_X * BAR_SCALE, y + 8);
+    // Título: en la franja oscura arriba del agujero, después del ícono.
+    bar.label.setFontSize(Math.round(13 * scale));
+    bar.label.setPosition(x + BAR_HOLE_X * barScale, y + 8 * scale);
     // Porcentaje: misma fila que el título, alineado con el final de la
     // barra (el borde derecho del hueco de relleno), no con el borde del sprite.
-    bar.pctText.setPosition(holeX + bar.holeWidthPx, y + 10);
+    bar.pctText.setFontSize(Math.round(10 * scale));
+    bar.pctText.setPosition(holeX + holeW, y + 10 * scale);
   }
 
   private setBarValue(bar: BarRow, current: number, max: number) {
@@ -199,18 +196,13 @@ export class GameHud {
   // ------------------------------------------------------ Inventory panel ----
 
   private createInventoryPanel(uiLayer: Phaser.GameObjects.Layer) {
-    this.inventoryPanel = this.scene.add
-      .image(0, 0, "hud-inventory-panel")
-      .setScrollFactor(0)
-      .setDepth(100)
-      .setDisplaySize(INVENTORY_PANEL_WIDTH, INVENTORY_PANEL_HEIGHT);
+    this.inventoryPanel = this.scene.add.image(0, 0, "hud-inventory-panel").setScrollFactor(0).setDepth(100);
     uiLayer.add(this.inventoryPanel);
 
     const types: ResourceType[] = ["iron", "ice", "rareMineral"];
     types.forEach((type) => {
       const icon = this.scene.add
         .image(0, 0, ORE_ICON_KEYS[type])
-        .setDisplaySize(28, 28)
         .setScrollFactor(0)
         .setDepth(101)
         .setVisible(false); // el inventario arranca vacío hasta recolectar algo
@@ -220,7 +212,6 @@ export class GameHud {
       const text = this.scene.add
         .text(0, 0, "0", {
           fontFamily: "Arial, sans-serif",
-          fontSize: "11px",
           fontStyle: "bold",
           color: "#ffffff",
           stroke: "#000000",
@@ -235,7 +226,7 @@ export class GameHud {
     });
 
     this.cargoWarningText = this.scene.add
-      .text(0, 0, "", { fontFamily: "monospace", fontSize: "12px", color: "#ff8080" })
+      .text(0, 0, "", { fontFamily: "monospace", color: "#ff8080" })
       .setOrigin(1, 1)
       .setScrollFactor(0)
       .setDepth(101);
@@ -260,7 +251,6 @@ export class GameHud {
 
       const image = this.scene.add
         .image(0, 0, def.key)
-        .setDisplaySize(30, 30)
         .setTint(POWERUP_STATE_COLORS.disabled)
         .setAlpha(0.55)
         .setScrollFactor(0)
@@ -290,7 +280,6 @@ export class GameHud {
   private createEmergencyButton(uiLayer: Phaser.GameObjects.Layer) {
     this.emergencyIcon = this.scene.add
       .image(0, 0, "hud-emergency-call")
-      .setDisplaySize(EMERGENCY_DISPLAY_WIDTH, EMERGENCY_DISPLAY_HEIGHT)
       .setOrigin(0, 0)
       .setScrollFactor(0)
       .setDepth(104)
@@ -302,11 +291,9 @@ export class GameHud {
     this.emergencyText = this.scene.add
       .text(0, 0, "Emergencia", {
         fontFamily: "Arial, sans-serif",
-        fontSize: "8px",
         fontStyle: "bold",
         color: "#ffd9a0",
         align: "center",
-        wordWrap: { width: EMERGENCY_TEXT_MAX_WIDTH * EMERGENCY_SCALE },
       })
       .setOrigin(0.5, 0.5)
       .setScrollFactor(0)
@@ -318,7 +305,7 @@ export class GameHud {
     // repartidos por el marco. Parpadean en rojo cuando está activo.
     this.emergencyLights = EMERGENCY_LIGHT_CENTERS.map(() => {
       const light = this.scene.add
-        .circle(0, 0, EMERGENCY_LIGHT_RADIUS * EMERGENCY_SCALE, 0xff3b30, 1)
+        .circle(0, 0, EMERGENCY_LIGHT_RADIUS, 0xff3b30, 1)
         .setScrollFactor(0)
         .setDepth(105)
         .setVisible(false);
@@ -327,15 +314,21 @@ export class GameHud {
     });
   }
 
-  private layoutEmergencyButton(x: number, y: number) {
-    this.emergencyIcon.setPosition(x, y);
+  private layoutEmergencyButton(x: number, y: number, displayWidth: number, displayHeight: number, scale: number) {
+    const emergencyScale = displayWidth / EMERGENCY_IMAGE_WIDTH;
+    this.emergencyIcon.setPosition(x, y).setDisplaySize(displayWidth, displayHeight);
+
+    this.emergencyText.setFontSize(Math.round(8 * scale));
+    this.emergencyText.setWordWrapWidth(EMERGENCY_TEXT_MAX_WIDTH * emergencyScale, true);
     this.emergencyText.setPosition(
-      x + EMERGENCY_TEXT_CENTER.x * EMERGENCY_SCALE,
-      y + EMERGENCY_TEXT_CENTER.y * EMERGENCY_SCALE
+      x + EMERGENCY_TEXT_CENTER.x * emergencyScale,
+      y + EMERGENCY_TEXT_CENTER.y * emergencyScale
     );
+
     this.emergencyLights.forEach((light, i) => {
       const c = EMERGENCY_LIGHT_CENTERS[i];
-      light.setPosition(x + c.x * EMERGENCY_SCALE, y + c.y * EMERGENCY_SCALE);
+      light.setRadius(EMERGENCY_LIGHT_RADIUS * emergencyScale);
+      light.setPosition(x + c.x * emergencyScale, y + c.y * emergencyScale);
     });
   }
 
@@ -378,56 +371,75 @@ export class GameHud {
 
   private reposition() {
     const { width, height } = this.scene.scale;
+    const scale = getUiScale(this.scene);
+
+    const margin = BASE_MARGIN * scale;
+    const invW = BASE_INVENTORY_PANEL_WIDTH * scale;
+    const invH = BASE_INVENTORY_PANEL_HEIGHT * scale;
+    const barW = invW; // las barras comparten ancho con el panel de inventario
+    const barScale = barW / BAR_IMAGE_WIDTH;
+    const barH = BAR_IMAGE_HEIGHT * barScale;
+    const rowHeight = barH + BASE_ROW_GAP * scale;
+    const emergencyGap = BASE_EMERGENCY_GAP * scale;
+    const emergencyH = rowHeight - 2 * scale;
+    const emergencyW = emergencyH * (EMERGENCY_IMAGE_WIDTH / EMERGENCY_IMAGE_HEIGHT);
 
     // Inventario: esquina inferior derecha.
-    const invX = width - MARGIN - INVENTORY_PANEL_WIDTH;
-    const invY = height - MARGIN - INVENTORY_PANEL_HEIGHT;
-    this.inventoryPanel.setPosition(invX + INVENTORY_PANEL_WIDTH / 2, invY + INVENTORY_PANEL_HEIGHT / 2);
+    const invX = width - margin - invW;
+    const invY = height - margin - invH;
+    this.inventoryPanel.setPosition(invX + invW / 2, invY + invH / 2).setDisplaySize(invW, invH);
 
-    const sx = INVENTORY_PANEL_WIDTH / INVENTORY_IMAGE_SIZE.w;
-    const sy = INVENTORY_PANEL_HEIGHT / INVENTORY_IMAGE_SIZE.h;
+    const sx = invW / INVENTORY_IMAGE_SIZE.w;
+    const sy = invH / INVENTORY_IMAGE_SIZE.h;
+    const iconSize = 28 * scale;
     const types: ResourceType[] = ["iron", "ice", "rareMineral"];
     types.forEach((type, i) => {
       const slot = INVENTORY_SLOT_CENTERS[i];
       const cx = invX + slot.x * sx;
       const cy = invY + slot.y * sy;
-      this.inventoryIcons[type]?.setPosition(cx, cy);
+      this.inventoryIcons[type]?.setPosition(cx, cy).setDisplaySize(iconSize, iconSize);
       // Cantidad en la esquina inferior derecha del ícono.
-      this.inventoryTexts[type]?.setPosition(cx + 14, cy + 14);
+      this.inventoryTexts[type]?.setFontSize(Math.round(11 * scale)).setPosition(cx + 14 * scale, cy + 14 * scale);
     });
 
     // El contador de carga va JUSTO ARRIBA del panel (no se superpone con
     // el diseño del marco inferior, que antes lo tapaba parcialmente).
-    this.cargoWarningText.setPosition(invX + INVENTORY_PANEL_WIDTH - 4, invY - 4);
+    this.cargoWarningText.setFontSize(Math.round(12 * scale)).setPosition(invX + invW - 4 * scale, invY - 4 * scale);
 
     // Barras de estado: alineadas a la derecha, apiladas justo encima del
     // inventario (mismo borde derecho que el panel).
-    const barX = width - MARGIN - BAR_DISPLAY_WIDTH;
-    const infoTextHeight = 16;
-    const cargoRowHeight = 18;
-    const barsBottomY = invY - cargoRowHeight - 6;
-    const barsTopY = barsBottomY - infoTextHeight - ROW_HEIGHT * 3;
+    const barX = width - margin - barW;
+    const infoTextHeight = 16 * scale;
+    const cargoRowHeight = 18 * scale;
+    const barsBottomY = invY - cargoRowHeight - 6 * scale;
+    const barsTopY = barsBottomY - infoTextHeight - rowHeight * 3;
 
-    this.layoutBar(this.fuelBar, barX, barsTopY);
-    this.layoutBar(this.energyBar, barX, barsTopY + ROW_HEIGHT);
-    this.layoutBar(this.oxygenBar, barX, barsTopY + ROW_HEIGHT * 2);
-    this.infoText.setPosition(width - MARGIN, barsTopY + ROW_HEIGHT * 3 + 2);
+    this.layoutBar(this.fuelBar, barX, barsTopY, barW, barH, scale);
+    this.layoutBar(this.energyBar, barX, barsTopY + rowHeight, barW, barH, scale);
+    this.layoutBar(this.oxygenBar, barX, barsTopY + rowHeight * 2, barW, barH, scale);
+    this.infoText.setFontSize(Math.round(12 * scale)).setPosition(width - margin, barsTopY + rowHeight * 3 + 2 * scale);
 
     // Botón de emergencia: a la izquierda de la barra de combustible,
     // centrado verticalmente con ella.
-    const fuelCenterY = barsTopY + BAR_DISPLAY_HEIGHT / 2;
+    const fuelCenterY = barsTopY + barH / 2;
     this.layoutEmergencyButton(
-      barX - EMERGENCY_GAP - EMERGENCY_DISPLAY_WIDTH,
-      fuelCenterY - EMERGENCY_DISPLAY_HEIGHT / 2
+      barX - emergencyGap - emergencyW,
+      fuelCenterY - emergencyH / 2,
+      emergencyW,
+      emergencyH,
+      scale
     );
 
-    // Power-ups: centrados en el margen inferior.
-    const puY = height - 60;
+    // Power-ups: centrados en el margen inferior. En pantallas angostas se
+    // acercan un poco más entre sí para no desbordar los bordes.
+    const puY = height - 60 * scale;
     const puCenterX = width / 2;
+    const puSpacing = 68 * scale;
+    const puIconSize = 30 * scale;
     this.powerupIcons.forEach((p, i) => {
-      const cx = puCenterX + (i - 1) * 68;
-      p.ring.setPosition(cx, puY);
-      p.image.setPosition(cx, puY);
+      const cx = puCenterX + (i - 1) * puSpacing;
+      p.ring.setPosition(cx, puY).setRadius(22 * scale);
+      p.image.setPosition(cx, puY).setDisplaySize(puIconSize, puIconSize);
     });
   }
 
