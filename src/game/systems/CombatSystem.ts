@@ -134,8 +134,10 @@ export class CombatSystem {
     const perPickup = asteroid.resourceAmount / count;
     for (let i = 0; i < count; i++) {
       const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-      const speed = Phaser.Math.FloatBetween(15, 60);
-      const offset = Phaser.Math.FloatBetween(0, asteroid.radius);
+      // Velocidad y dispersión bajas (más el frenado en ResourcePickup):
+      // quedan agrupados cerca del asteroide en vez de esparcirse.
+      const speed = Phaser.Math.FloatBetween(6, 18);
+      const offset = Phaser.Math.FloatBetween(0, asteroid.radius * 0.35);
       const x = asteroid.x + Math.cos(angle) * offset;
       const y = asteroid.y + Math.sin(angle) * offset;
       const vx = Math.cos(angle) * speed + asteroid.vx * 0.4;

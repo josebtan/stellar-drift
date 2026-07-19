@@ -6,6 +6,13 @@ export const PICKUP_RADIUS = 11;
 /** Tiempo antes de que un mineral no recogido se disipe, para no acumular
  * objetos sin límite en sectores donde el jugador ya no vuelve. */
 const PICKUP_LIFESPAN = 45;
+/** Fricción del mineral flotante: fracción de velocidad que conserva
+ * después de 1 segundo (decaimiento exponencial). Sin esto no hay ninguna
+ * fricción y los minerales heredan la velocidad de lanzamiento para
+ * siempre, terminando esparcidos lejos entre sí con el tiempo — con este
+ * frenado se detienen rápido y quedan agrupados cerca de donde explotó
+ * el asteroide. */
+const PICKUP_DRAG = 0.12;
 
 const ORE_ICON_KEYS: Record<ResourceType, string> = {
   iron: "ore-iron",
@@ -51,6 +58,11 @@ export class ResourcePickup extends Phaser.GameObjects.Image implements LightBod
   applyVelocity(dt: number): boolean {
     this.x += this.vx * dt;
     this.y += this.vy * dt;
+
+    const dragFactor = Math.pow(PICKUP_DRAG, dt);
+    this.vx *= dragFactor;
+    this.vy *= dragFactor;
+
     this.rotation += this.spinSpeed * dt;
     this.timeToLive -= dt;
     return this.timeToLive > 0;
