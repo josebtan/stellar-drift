@@ -124,6 +124,9 @@ export class Inventory {
   }
 
   /** Debe llamarse cada frame/tick: regenera energía lentamente hasta el tope. */
+  /** Ya no se llama desde MainScene (la energía no se regenera sola).
+   * Se deja por si más adelante se agrega una forma de recargarla, ej. en
+   * una estación. */
   tickEnergyRegen(dt: number) {
     this.energy = Math.min(this.energyCapacity, this.energy + ENERGY_REGEN_PER_SEC * dt);
   }

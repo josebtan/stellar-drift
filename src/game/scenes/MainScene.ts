@@ -16,7 +16,7 @@ import { worldToSector } from "../procgen/universeGenerator";
 const SHIP_SPAWN_X = 400;
 const SHIP_SPAWN_Y = 0;
 const FIRE_COOLDOWN = 0.15; // segundos entre disparos
-const ENERGY_COST_PER_SHOT = 3;
+const ENERGY_COST_PER_SHOT = 1;
 const MIN_ZOOM = 0.45;
 const MAX_ZOOM = 2.2;
 /** Combustible por segundo mientras la nave se impulsa; con el tanque base
@@ -228,7 +228,10 @@ export class MainScene extends Phaser.Scene {
     if (!this.ship.isDestroyed) {
       this.inventory.tickLifeSupport(dt);
     }
-    this.inventory.tickEnergyRegen(dt);
+    // La energía ya NO se regenera sola con el tiempo — es un recurso que
+    // solo se gasta al disparar (ver ENERGY_COST_PER_SHOT). Si en el
+    // futuro hace falta reponerla, debería ser en una estación o similar,
+    // no automático.
 
     this.parallax.update();
     this.minimap.update(this.ship, this.universe.celestialBodies, this.universe.asteroids, this.universe.stations);
