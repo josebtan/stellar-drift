@@ -259,7 +259,7 @@ export class MainScene extends Phaser.Scene {
       const spawnDist = 20;
       const x = this.ship.x + Math.cos(this.ship.rotation - Math.PI / 2) * spawnDist;
       const y = this.ship.y + Math.sin(this.ship.rotation - Math.PI / 2) * spawnDist;
-      this.combat.fire(x, y, this.ship.rotation);
+      this.combat.fire(x, y, this.ship.rotation, this.ship.vx, this.ship.vy);
       this.fireCooldown = FIRE_COOLDOWN;
     }
   }

@@ -31,8 +31,8 @@ export class CombatSystem {
     this.worldLayer = worldLayer;
   }
 
-  fire(x: number, y: number, angle: number) {
-    const projectile = new Projectile(this.scene, x, y, angle);
+  fire(x: number, y: number, angle: number, shipVx: number, shipVy: number) {
+    const projectile = new Projectile(this.scene, x, y, angle, shipVx, shipVy);
     this.projectiles.push(projectile);
     this.worldLayer?.add(projectile);
   }
@@ -55,10 +55,19 @@ export class CombatSystem {
     asteroids: readonly Asteroid[],
     callbacks: CombatCallbacks
   ) {
+    // Vista actual de la cámara en coordenadas de mundo (ya tiene en cuenta
+    // zoom y scroll) — un proyectil que sale de acá se despawnea, en vez de
+    // depender solo de un tiempo de vida fijo que con poco zoom (mundo
+    // visible más grande) lo hacía desaparecer antes de llegar al borde.
+    const view = this.scene.cameras.main.worldView;
+    const margin = 40;
+
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const p = this.projectiles[i];
       const alive = p.update(dt);
-      if (!alive) {
+      const offscreen =
+        p.x < view.x - margin || p.x > view.right + margin || p.y < view.y - margin || p.y > view.bottom + margin;
+      if (!alive || offscreen) {
         p.destroy();
         this.projectiles.splice(i, 1);
         continue;
